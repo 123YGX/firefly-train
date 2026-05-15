@@ -47,6 +47,21 @@ const Audio = {
         this.playTone(800, 0.05, 'square', 0.03);
     },
 
+    playCollect() {
+        this.playTone(880, 0.12, 'sine', 0.07);
+        setTimeout(() => this.playTone(1100, 0.15, 'sine', 0.06), 60);
+    },
+
+    playTeleport() {
+        this.playTone(200, 0.2, 'sawtooth', 0.04);
+        setTimeout(() => this.playTone(600, 0.15, 'sine', 0.05), 100);
+    },
+
+    playBreak() {
+        this.playTone(150, 0.2, 'square', 0.06);
+        setTimeout(() => this.playTone(100, 0.15, 'square', 0.04), 80);
+    },
+
     startBGM() {
         if (this.bgmPlaying) return;
         this.ensure();

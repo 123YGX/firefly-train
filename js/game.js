@@ -7,11 +7,13 @@ const Game = {
 
     init() {
         this.canvas = document.getElementById('game-canvas');
-        this.canvas.width = 800;
-        this.canvas.height = 600;
+        this.canvas.width = 1400;
+        this.canvas.height = 900;
         this.ctx = this.canvas.getContext('2d');
 
         Levels.loadProgress();
+        Effects.init();
+        Player.loadSprite();
         UI.init();
         this.bindEvents();
         this.loop();
@@ -24,11 +26,13 @@ const Game = {
             const mx = e.clientX - rect.left;
             const my = e.clientY - rect.top;
             Fold.hoveredEdge = Fold.detectEdge(mx, my);
+            Fold.hoveredSide = Fold.hoveredEdge ? Fold.determineSide(mx, my, Fold.hoveredEdge) : null;
+            Fold._previewCache = null;
             this.canvas.style.cursor = Fold.hoveredEdge ? 'pointer' : 'default';
         });
 
         this.canvas.addEventListener('click', (e) => {
-            if (this.state !== 'playing' || Player.moving) return;
+            if (this.state !== 'playing' || Player.moving || Fold.animating) return;
             const rect = this.canvas.getBoundingClientRect();
             const mx = e.clientX - rect.left;
             const my = e.clientY - rect.top;
@@ -36,19 +40,15 @@ const Game = {
             const edge = Fold.detectEdge(mx, my);
             if (edge) {
                 const side = Fold.determineSide(mx, my, edge);
-                if (Fold.executeFold(edge, side)) {
-                    this.checkAutoMove();
-                }
+                Fold.executeFold(edge, side);
             }
         });
     },
 
     checkAutoMove() {
-        setTimeout(() => {
-            if (Player.tryMove()) {
-                UI.showFoldHint('找到路径了！');
-            }
-        }, 200);
+        if (Player.tryMove()) {
+            UI.showFoldHint('找到路径了！');
+        }
     },
 
     showStory(type) {
@@ -104,6 +104,11 @@ const Game = {
         Audio.playComplete();
         Levels.markCurrentComplete();
 
+        const end = Grid.findEnd();
+        const px = Grid.offsetX + end.x * Grid.TILE_SIZE + Grid.TILE_SIZE / 2;
+        const py = Grid.offsetY + end.y * Grid.TILE_SIZE + Grid.TILE_SIZE / 2;
+        Particles.emit({x: px, y: py, count: 50, colors: ['#ffb74d','#ff7043','#ffeb3b','#fff'], speed: 4, life: 75, gravity: 0.03, size: 3.5});
+
         const chapter = Story.chapters[Levels.currentChapter];
         const lvl = chapter.levels[Levels.currentLevel];
 
@@ -143,29 +148,39 @@ const Game = {
 
     drawBackground() {
         const colors = [
-            ['#1a1a2e', '#16213e'],
-            ['#1a2a3a', '#0f3460'],
-            ['#2a1a1a', '#3d1a1a'],
-            ['#1a3a2a', '#0d4030'],
-            ['#2a2a1a', '#3d3d0f'],
-            ['#1a1a3a', '#2a1a4a']
+            ['#f5e6c8', '#e8d5a3'],  // Ch1 午后暖黄
+            ['#e8c49a', '#d4a574'],  // Ch2 傍晚橙棕
+            ['#c47a5a', '#6b3a5a'],  // Ch3 黄昏橙紫
+            ['#2a4a6b', '#1a3a4a'],  // Ch4 暮色深蓝青
+            ['#1a2a4a', '#0f1a3a'],  // Ch5 夜晚深蓝
+            ['#2a1a4a', '#3a2a1a']   // Ch6 深紫→暖金
         ];
         const [c1, c2] = colors[Levels.currentChapter] || colors[0];
-        const grad = this.ctx.createLinearGradient(0, 0, 800, 600);
+        const grad = this.ctx.createLinearGradient(0, 0, 1400, 900);
         grad.addColorStop(0, c1);
         grad.addColorStop(1, c2);
         this.ctx.fillStyle = grad;
-        this.ctx.fillRect(0, 0, 800, 600);
+        this.ctx.fillRect(0, 0, 1400, 900);
     },
 
     loop() {
         if (this.state === 'playing' || this.state === 'complete') {
             this.drawBackground();
+            Effects.drawSceneEnvironment(this.ctx, Levels.currentChapter);
+            Effects.updateBgFireflies();
+            Effects.drawBgFireflies(this.ctx);
             Grid.draw(this.ctx);
+            Effects.drawCreases(this.ctx);
             Fold.drawFoldPreview(this.ctx);
+            Fold.drawFoldAnimation(this.ctx);
             Player.draw(this.ctx);
+            Particles.update();
+            Particles.draw(this.ctx);
 
-            if (Player.moving) {
+            if (Fold.animating) {
+                const done = Fold.updateAnimation();
+                if (done) this.checkAutoMove();
+            } else if (Player.moving) {
                 const reached = Player.update();
                 if (reached) {
                     const end = Grid.findEnd();

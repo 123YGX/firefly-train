@@ -185,6 +185,16 @@ const UI = {
         const ch = Story.chapters[Levels.currentChapter];
         document.getElementById('hud-chapter').textContent = `第${Levels.currentChapter + 1}幕：${ch.name}`;
         document.getElementById('hud-level').textContent = `第 ${Levels.currentLevel + 1} 关`;
+
+        const ci = Levels.currentChapter;
+        const show = (id, visible) => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = visible ? 'flex' : 'none';
+        };
+        show('legend-collect', ci >= 2);
+        show('legend-teleport', ci >= 3);
+        show('legend-fragile', ci >= 4);
+        show('legend-oneway', ci >= 5);
     },
 
     showFoldHint(text) {
