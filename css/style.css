@@ -1,0 +1,469 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #1a1a2e;
+    font-family: 'Microsoft YaHei', sans-serif;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+#game-container {
+    position: relative;
+    width: 800px;
+    height: 600px;
+    background: #16213e;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(255, 183, 77, 0.1);
+}
+
+#game-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+#ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.screen {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: auto;
+}
+
+.screen.active {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#menu-screen {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+}
+
+.game-title {
+    font-size: 48px;
+    color: #ffb74d;
+    text-shadow: 0 0 20px rgba(255, 183, 77, 0.5);
+    margin-bottom: 12px;
+    letter-spacing: 8px;
+}
+
+.subtitle {
+    color: #8899aa;
+    font-size: 14px;
+    margin-bottom: 40px;
+}
+
+.menu-btn {
+    background: transparent;
+    border: 1px solid #ffb74d;
+    color: #ffb74d;
+    padding: 12px 40px;
+    font-size: 16px;
+    cursor: pointer;
+    margin: 8px;
+    border-radius: 4px;
+    transition: all 0.3s;
+    font-family: inherit;
+}
+
+.menu-btn:hover {
+    background: #ffb74d;
+    color: #1a1a2e;
+}
+
+/* Story screen */
+#story-screen {
+    background: rgba(10, 10, 30, 0.95);
+}
+
+.story-box {
+    max-width: 600px;
+    padding: 40px;
+    text-align: center;
+}
+
+#story-text {
+    color: #e0e0e0;
+    font-size: 16px;
+    line-height: 2;
+    margin-bottom: 30px;
+}
+
+.story-btn {
+    background: transparent;
+    border: 1px solid #80cbc4;
+    color: #80cbc4;
+    padding: 10px 30px;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.3s;
+    font-family: inherit;
+}
+
+.story-btn:hover {
+    background: #80cbc4;
+    color: #1a1a2e;
+}
+
+/* Game HUD */
+#game-screen {
+    pointer-events: none;
+}
+
+#game-screen.active {
+    display: block;
+}
+
+#game-hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    pointer-events: auto;
+}
+
+#hud-chapter, #hud-level {
+    color: #8899aa;
+    font-size: 13px;
+}
+
+.hud-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ccc;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 4px;
+    margin-left: 6px;
+    transition: all 0.2s;
+}
+
+.hud-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+/* Fold indicator */
+#fold-indicator {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #ffb74d;
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+#fold-indicator.visible {
+    opacity: 1;
+}
+
+/* Chapter select */
+#chapter-screen {
+    background: rgba(10, 10, 30, 0.97);
+    flex-direction: column;
+}
+
+#chapter-screen h2 {
+    color: #ffb74d;
+    margin-bottom: 30px;
+}
+
+#chapter-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 520px;
+    width: 100%;
+    margin-bottom: 30px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 0 20px;
+}
+
+.chapter-block {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 183, 77, 0.2);
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+
+.chapter-block.locked {
+    opacity: 0.35;
+}
+
+.chapter-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.chapter-header .ch-num {
+    color: #ffb74d;
+    font-size: 15px;
+    font-weight: bold;
+}
+
+.chapter-header .ch-name {
+    color: #ccc;
+    font-size: 13px;
+}
+
+.chapter-levels {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.level-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 183, 77, 0.4);
+    background: rgba(255, 183, 77, 0.05);
+    color: #ffb74d;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.level-btn:hover {
+    background: rgba(255, 183, 77, 0.2);
+}
+
+.level-btn.completed {
+    background: rgba(76, 175, 80, 0.15);
+    border-color: rgba(76, 175, 80, 0.5);
+    color: #81c784;
+}
+
+.level-btn.locked {
+    opacity: 0.3;
+    cursor: not-allowed;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #666;
+}
+
+/* Complete screen */
+#complete-screen {
+    background: rgba(10, 10, 30, 0.9);
+}
+
+.complete-box {
+    text-align: center;
+    padding: 40px;
+}
+
+#complete-title {
+    color: #80cbc4;
+    font-size: 24px;
+    margin-bottom: 16px;
+}
+
+#complete-text {
+    color: #bbb;
+    font-size: 14px;
+    margin-bottom: 30px;
+    line-height: 1.8;
+}
+
+/* Tutorial overlay */
+#tutorial-overlay {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.65);
+    pointer-events: auto;
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+}
+
+#tutorial-overlay.visible {
+    display: flex;
+}
+
+.tutorial-box {
+    max-width: 480px;
+    background: linear-gradient(145deg, #1f2942 0%, #1a2238 100%);
+    border: 1px solid rgba(255, 183, 77, 0.4);
+    border-radius: 10px;
+    padding: 24px 28px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.tutorial-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 183, 77, 0.2);
+}
+
+#tutorial-title {
+    color: #ffb74d;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+#tutorial-progress {
+    color: #8899aa;
+    font-size: 12px;
+}
+
+#tutorial-text {
+    color: #e0e0e0;
+    font-size: 14px;
+    line-height: 1.9;
+    margin-bottom: 20px;
+    white-space: pre-line;
+}
+
+.tutorial-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.tutorial-btn-primary, .tutorial-btn-secondary {
+    padding: 8px 20px;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.tutorial-btn-primary {
+    background: #ffb74d;
+    border: none;
+    color: #1a1a2e;
+    font-weight: bold;
+}
+
+.tutorial-btn-primary:hover {
+    background: #ffc97c;
+}
+
+.tutorial-btn-secondary {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #aaa;
+}
+
+.tutorial-btn-secondary:hover {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Legend panel */
+#legend-panel {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 6px;
+    padding: 8px 12px;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    color: #ccc;
+    font-size: 11px;
+    gap: 6px;
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.legend-square {
+    width: 10px;
+    height: 10px;
+    display: inline-block;
+    border-radius: 2px;
+}
+
+/* Confirm dialog */
+#confirm-overlay {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    pointer-events: auto;
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+}
+
+#confirm-overlay.visible {
+    display: flex;
+}
+
+.confirm-box {
+    background: linear-gradient(145deg, #1f2942 0%, #1a2238 100%);
+    border: 1px solid rgba(255, 183, 77, 0.4);
+    border-radius: 10px;
+    padding: 28px 32px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    max-width: 360px;
+    text-align: center;
+}
+
+#confirm-text {
+    color: #e0e0e0;
+    font-size: 15px;
+    line-height: 1.7;
+    margin-bottom: 24px;
+}
+
+.confirm-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}

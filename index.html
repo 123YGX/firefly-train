@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>萤火与列车 - 折纸解谜</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="ui-layer">
+            <div id="menu-screen" class="screen active">
+                <h1 class="game-title">萤火与列车</h1>
+                <p class="subtitle">一段关于独自旅行与自我和解的折纸解谜之旅</p>
+                <button id="btn-start" class="menu-btn">开始旅程</button>
+                <button id="btn-chapters" class="menu-btn">章节选择</button>
+            </div>
+            <div id="story-screen" class="screen">
+                <div class="story-box">
+                    <p id="story-text"></p>
+                    <button id="btn-story-next" class="story-btn">继续</button>
+                </div>
+            </div>
+            <div id="game-screen" class="screen">
+                <div id="game-hud">
+                    <span id="hud-chapter"></span>
+                    <span id="hud-level"></span>
+                    <div id="hud-buttons">
+                        <button id="btn-undo" class="hud-btn" title="撤销">↩</button>
+                        <button id="btn-reset" class="hud-btn" title="重置">↺</button>
+                        <button id="btn-hint" class="hud-btn" title="教程">?</button>
+                        <button id="btn-exit" class="hud-btn" title="退出到主菜单">✕</button>
+                    </div>
+                </div>
+                <div id="fold-indicator"></div>
+                <div id="tutorial-overlay">
+                    <div class="tutorial-box">
+                        <div class="tutorial-header">
+                            <span id="tutorial-title">教程</span>
+                            <span id="tutorial-progress">1 / 5</span>
+                        </div>
+                        <p id="tutorial-text"></p>
+                        <div class="tutorial-buttons">
+                            <button id="btn-tutorial-skip" class="tutorial-btn-secondary">跳过教程</button>
+                            <button id="btn-tutorial-next" class="tutorial-btn-primary">下一步 →</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="legend-panel">
+                    <div class="legend-item"><span class="legend-dot" style="background:#4caf50"></span>起点</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#ff7043"></span>终点</div>
+                    <div class="legend-item"><span class="legend-square" style="background:#2a4a6b"></span>路径</div>
+                    <div class="legend-item"><span class="legend-square" style="background:#0d1520"></span>墙</div>
+                </div>
+            </div>
+            <div id="chapter-screen" class="screen">
+                <h2>章节选择</h2>
+                <div id="chapter-list"></div>
+                <button id="btn-back-menu" class="menu-btn">返回</button>
+            </div>
+            <div id="complete-screen" class="screen">
+                <div class="complete-box">
+                    <h2 id="complete-title"></h2>
+                    <p id="complete-text"></p>
+                    <button id="btn-next-level" class="menu-btn">下一关</button>
+                </div>
+            </div>
+            <div id="confirm-overlay">
+                <div class="confirm-box">
+                    <p id="confirm-text">确定要退出当前关卡，返回主菜单吗？</p>
+                    <div class="confirm-buttons">
+                        <button id="btn-confirm-no" class="tutorial-btn-secondary">取消</button>
+                        <button id="btn-confirm-yes" class="tutorial-btn-primary">退出</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="js/story.js"></script>
+    <script src="js/levels.js"></script>
+    <script src="js/tutorial.js"></script>
+    <script src="js/grid.js"></script>
+    <script src="js/fold.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
