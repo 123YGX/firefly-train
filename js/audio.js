@@ -3,6 +3,7 @@ const Audio = {
     bgmPlaying: false,
     bgmOsc: null,
     bgmGain: null,
+    muted: false,
 
     init() {
         this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -13,7 +14,13 @@ const Audio = {
         if (this.ctx.state === 'suspended') this.ctx.resume();
     },
 
+    toggleMute() {
+        this.muted = !this.muted;
+        return this.muted;
+    },
+
     playTone(freq, duration, type, volume) {
+        if (this.muted) return;
         this.ensure();
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -69,20 +76,32 @@ const Audio = {
         this._playBGMLoop();
     },
 
+    _getChapterMusic(chapter) {
+        const configs = [
+            { notes: [262, 330, 392, 440, 392, 330, 349, 294], type: 'sine', vol: 0.025, tempo: 1800 },
+            { notes: [294, 349, 440, 494, 440, 349, 392, 330], type: 'sine', vol: 0.022, tempo: 2000 },
+            { notes: [330, 392, 494, 523, 494, 440, 392, 349], type: 'triangle', vol: 0.02, tempo: 2200 },
+            { notes: [247, 294, 349, 392, 349, 330, 294, 262], type: 'sine', vol: 0.02, tempo: 2400 },
+            { notes: [220, 262, 330, 349, 330, 294, 262, 247], type: 'triangle', vol: 0.018, tempo: 2600 },
+            { notes: [262, 330, 392, 523, 494, 440, 392, 330], type: 'sine', vol: 0.022, tempo: 2200 }
+        ];
+        return configs[chapter] || configs[0];
+    },
+
     _playBGMLoop() {
         if (!this.bgmPlaying) return;
-        const notes = [262, 294, 330, 349, 392, 440, 494, 523];
-        const melody = [0, 2, 4, 5, 4, 2, 3, 1];
+        const chapter = typeof Levels !== 'undefined' ? Levels.currentChapter : 0;
+        const config = this._getChapterMusic(chapter);
         let i = 0;
         const playNext = () => {
             if (!this.bgmPlaying) return;
-            const note = notes[melody[i % melody.length]];
-            this.playTone(note, 1.5, 'sine', 0.02);
+            const note = config.notes[i % config.notes.length];
+            this.playTone(note, 1.5, config.type, config.vol);
             i++;
             if (i < 32) {
-                setTimeout(playNext, 2000);
+                setTimeout(playNext, config.tempo);
             } else {
-                setTimeout(() => this._playBGMLoop(), 2000);
+                setTimeout(() => this._playBGMLoop(), config.tempo);
             }
         };
         playNext();

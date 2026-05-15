@@ -23,8 +23,10 @@ const Game = {
         this.canvas.addEventListener('mousemove', (e) => {
             if (this.state !== 'playing') return;
             const rect = this.canvas.getBoundingClientRect();
-            const mx = e.clientX - rect.left;
-            const my = e.clientY - rect.top;
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            const mx = (e.clientX - rect.left) * scaleX;
+            const my = (e.clientY - rect.top) * scaleY;
             Fold.hoveredEdge = Fold.detectEdge(mx, my);
             Fold.hoveredSide = Fold.hoveredEdge ? Fold.determineSide(mx, my, Fold.hoveredEdge) : null;
             Fold._previewCache = null;
@@ -34,8 +36,10 @@ const Game = {
         this.canvas.addEventListener('click', (e) => {
             if (this.state !== 'playing' || Player.moving || Fold.animating) return;
             const rect = this.canvas.getBoundingClientRect();
-            const mx = e.clientX - rect.left;
-            const my = e.clientY - rect.top;
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            const mx = (e.clientX - rect.left) * scaleX;
+            const my = (e.clientY - rect.top) * scaleY;
 
             const edge = Fold.detectEdge(mx, my);
             if (edge) {
@@ -43,12 +47,80 @@ const Game = {
                 Fold.executeFold(edge, side);
             }
         });
+
+        document.addEventListener('keydown', (e) => {
+            if (this.state === 'playing' && !Player.moving && !Fold.animating) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                    e.preventDefault();
+                    if (Fold.undo()) {
+                        Audio.playClick();
+                        UI.updateFoldCount();
+                    }
+                } else if (e.key === 'r' || e.key === 'R') {
+                    Audio.playClick();
+                    Fold.resetLevel();
+                    const start = Grid.findStart();
+                    Player.init(start.x, start.y);
+                    UI.updateFoldCount();
+                }
+            }
+            if (e.key === 'Escape') {
+                if (this.state === 'playing') {
+                    Audio.playClick();
+                    UI.showConfirm();
+                } else if (document.getElementById('confirm-overlay').classList.contains('visible')) {
+                    Audio.playClick();
+                    UI.hideConfirm();
+                }
+            }
+        });
+
+        this.canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (this.state !== 'playing' || Player.moving || Fold.animating) return;
+            const touch = e.touches[0];
+            const rect = this.canvas.getBoundingClientRect();
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            const mx = (touch.clientX - rect.left) * scaleX;
+            const my = (touch.clientY - rect.top) * scaleY;
+
+            const edge = Fold.detectEdge(mx, my);
+            if (edge) {
+                const side = Fold.determineSide(mx, my, edge);
+                Fold.executeFold(edge, side);
+            }
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (this.state !== 'playing') return;
+            const touch = e.touches[0];
+            const rect = this.canvas.getBoundingClientRect();
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            const mx = (touch.clientX - rect.left) * scaleX;
+            const my = (touch.clientY - rect.top) * scaleY;
+            Fold.hoveredEdge = Fold.detectEdge(mx, my);
+            Fold.hoveredSide = Fold.hoveredEdge ? Fold.determineSide(mx, my, Fold.hoveredEdge) : null;
+            Fold._previewCache = null;
+        }, { passive: false });
     },
 
     checkAutoMove() {
+        UI.updateFoldCount();
         if (Player.tryMove()) {
             UI.showFoldHint('找到路径了！');
+        } else {
+            UI.showFoldHint('路径未连通，继续折叠…');
+            this.shakeScreen();
         }
+    },
+
+    shakeScreen() {
+        const container = document.getElementById('game-container');
+        container.classList.add('shake');
+        setTimeout(() => container.classList.remove('shake'), 300);
     },
 
     showStory(type) {
@@ -82,6 +154,15 @@ const Game = {
         }
     },
 
+    transition(callback) {
+        const overlay = document.getElementById('transition-overlay');
+        overlay.classList.add('fade-in');
+        setTimeout(() => {
+            callback();
+            setTimeout(() => overlay.classList.remove('fade-in'), 50);
+        }, 400);
+    },
+
     startLevel() {
         const level = Levels.getCurrentLevel();
         Grid.init(level);
@@ -111,22 +192,42 @@ const Game = {
 
         const chapter = Story.chapters[Levels.currentChapter];
         const lvl = chapter.levels[Levels.currentLevel];
+        const level = Levels.getCurrentLevel();
+        const folds = Fold.history.length;
+        const par = level.par || 1;
+        let stars = 0;
+        if (folds <= par) stars = 3;
+        else if (folds <= par + 1) stars = 2;
+        else if (folds <= par + 2) stars = 1;
 
         document.getElementById('complete-title').textContent = '过关！';
+        const starsEl = document.getElementById('complete-stars');
+        const starColor = stars >= 2 ? '#ffb74d' : '#888';
+        const emptyColor = '#444';
+        starsEl.innerHTML = '';
+        for (let i = 0; i < 3; i++) {
+            const span = document.createElement('span');
+            span.className = 'star';
+            span.textContent = i < stars ? '★' : '☆';
+            span.style.color = i < stars ? starColor : emptyColor;
+            starsEl.appendChild(span);
+        }
         document.getElementById('complete-text').textContent = lvl ? lvl.after : '继续前进吧。';
 
         setTimeout(() => UI.showScreen('complete'), 600);
     },
 
     advanceLevel() {
-        const result = Levels.nextLevel();
-        if (result === 'gameover') {
-            this.showEnding();
-        } else if (result === 'newchapter') {
-            this.showStory('intro');
-        } else {
-            this.showStory('before');
-        }
+        this.transition(() => {
+            const result = Levels.nextLevel();
+            if (result === 'gameover') {
+                this.showEnding();
+            } else if (result === 'newchapter') {
+                this.showStory('intro');
+            } else {
+                this.showStory('before');
+            }
+        });
     },
 
     showEnding() {
@@ -163,8 +264,39 @@ const Game = {
         this.ctx.fillRect(0, 0, 1400, 900);
     },
 
+    drawMenuBackground() {
+        const ctx = this.ctx;
+        const grad = ctx.createLinearGradient(0, 0, 1400, 900);
+        grad.addColorStop(0, '#1a1a2e');
+        grad.addColorStop(0.5, '#16213e');
+        grad.addColorStop(1, '#0f3460');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1400, 900);
+
+        Effects.updateBgFireflies();
+        Effects.drawBgFireflies(ctx);
+
+        const now = Date.now();
+        ctx.save();
+        ctx.globalAlpha = 0.06;
+        ctx.strokeStyle = '#ffb74d';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 5; i++) {
+            const y = 300 + i * 80 + Math.sin(now * 0.0005 + i) * 20;
+            ctx.beginPath();
+            for (let x = 0; x <= 1400; x += 8) {
+                const wy = y + Math.sin(x * 0.008 + now * 0.001 + i * 2) * 15;
+                x === 0 ? ctx.moveTo(x, wy) : ctx.lineTo(x, wy);
+            }
+            ctx.stroke();
+        }
+        ctx.restore();
+    },
+
     loop() {
-        if (this.state === 'playing' || this.state === 'complete') {
+        if (this.state === 'menu' || this.state === 'story' || this.state === 'ending') {
+            this.drawMenuBackground();
+        } else if (this.state === 'playing' || this.state === 'complete') {
             this.drawBackground();
             Effects.drawSceneEnvironment(this.ctx, Levels.currentChapter);
             Effects.updateBgFireflies();

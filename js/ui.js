@@ -30,7 +30,10 @@ const UI = {
         });
 
         document.getElementById('btn-undo').addEventListener('click', () => {
-            if (Fold.undo()) Audio.playClick();
+            if (Fold.undo()) {
+                Audio.playClick();
+                this.updateFoldCount();
+            }
         });
 
         document.getElementById('btn-reset').addEventListener('click', () => {
@@ -38,6 +41,7 @@ const UI = {
             Fold.resetLevel();
             const start = Grid.findStart();
             Player.init(start.x, start.y);
+            this.updateFoldCount();
         });
 
         document.getElementById('btn-next-level').addEventListener('click', () => {
@@ -70,6 +74,12 @@ const UI = {
         document.getElementById('btn-exit').addEventListener('click', () => {
             Audio.playClick();
             this.showConfirm();
+        });
+
+        document.getElementById('btn-mute').addEventListener('click', () => {
+            const muted = Audio.toggleMute();
+            document.getElementById('btn-mute').textContent = muted ? '♪̸' : '♪';
+            document.getElementById('btn-mute').style.opacity = muted ? '0.5' : '1';
         });
 
         document.getElementById('btn-confirm-no').addEventListener('click', () => {
@@ -185,6 +195,7 @@ const UI = {
         const ch = Story.chapters[Levels.currentChapter];
         document.getElementById('hud-chapter').textContent = `第${Levels.currentChapter + 1}幕：${ch.name}`;
         document.getElementById('hud-level').textContent = `第 ${Levels.currentLevel + 1} 关`;
+        this.updateFoldCount();
 
         const ci = Levels.currentChapter;
         const show = (id, visible) => {
@@ -195,6 +206,13 @@ const UI = {
         show('legend-teleport', ci >= 3);
         show('legend-fragile', ci >= 4);
         show('legend-oneway', ci >= 5);
+    },
+
+    updateFoldCount() {
+        const level = Levels.getCurrentLevel();
+        const par = level.par || 1;
+        const folds = Fold.history.length;
+        document.getElementById('hud-folds').textContent = `折叠: ${folds} / ${par}`;
     },
 
     showFoldHint(text) {

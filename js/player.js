@@ -205,6 +205,16 @@ const Player = {
         } else {
             this.pixelX += (dx / dist) * this.moveSpeed;
             this.pixelY += (dy / dist) * this.moveSpeed;
+
+            if (Math.random() < 0.3) {
+                Particles.emit({
+                    x: this.pixelX + (Math.random() - 0.5) * 8,
+                    y: this.pixelY + 22,
+                    count: 1,
+                    colors: ['rgba(200,200,180,0.6)', 'rgba(160,160,140,0.4)'],
+                    speed: 0.5, life: 20, gravity: -0.02, size: 1.5, friction: 0.95
+                });
+            }
         }
         return false;
     },

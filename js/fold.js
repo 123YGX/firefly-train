@@ -6,7 +6,7 @@ const Fold = {
     hoveredSide: null,
     animating: false,
     animProgress: 0,
-    animDuration: 20,
+    animDuration: 30,
     animEdge: null,
     animSide: null,
     pendingDisplay: null,
@@ -33,15 +33,25 @@ const Fold = {
         const totalW = Grid.gridWidth * Grid.TILE_SIZE;
         const totalH = Grid.gridHeight * Grid.TILE_SIZE;
         if (gx < 0 || gx > totalW || gy < 0 || gy > totalH) return null;
+
+        let best = null;
+        let bestDist = margin;
+
         for (let i = 1; i < Grid.gridWidth; i++) {
-            if (Math.abs(gx - i * Grid.TILE_SIZE) < margin)
-                return { type: 'vertical', index: i };
+            const d = Math.abs(gx - i * Grid.TILE_SIZE);
+            if (d < bestDist) {
+                bestDist = d;
+                best = { type: 'vertical', index: i };
+            }
         }
         for (let i = 1; i < Grid.gridHeight; i++) {
-            if (Math.abs(gy - i * Grid.TILE_SIZE) < margin)
-                return { type: 'horizontal', index: i };
+            const d = Math.abs(gy - i * Grid.TILE_SIZE);
+            if (d < bestDist) {
+                bestDist = d;
+                best = { type: 'horizontal', index: i };
+            }
         }
-        return null;
+        return best;
     },
 
     determineSide(mx, my, edge) {
@@ -144,48 +154,203 @@ const Fold = {
         const edge = this.animEdge;
         const side = this.animSide;
         const TS = Grid.TILE_SIZE;
+        const angle = t * Math.PI;
 
         ctx.save();
-        ctx.globalAlpha = 0.7;
 
         if (edge.type === 'vertical') {
             const lineX = Grid.offsetX + edge.index * TS;
             const foldWidth = side === 'left' ? edge.index * TS : (Grid.gridWidth - edge.index) * TS;
-            const scaleX = t < 0.5 ? 1 - t * 2 : (t - 0.5) * 2;
+            const gridTop = Grid.offsetY;
+            const gridH = Grid.gridHeight * TS;
+            const slices = 8;
+            const sliceW = foldWidth / slices;
 
-            if (side === 'left') {
-                ctx.translate(lineX, 0);
-                ctx.scale(-scaleX, 1);
-                ctx.translate(-lineX, 0);
-                ctx.fillStyle = 'rgba(107, 42, 107, 0.4)';
-                ctx.fillRect(lineX - foldWidth, Grid.offsetY, foldWidth, Grid.gridHeight * TS);
-            } else {
-                ctx.translate(lineX, 0);
-                ctx.scale(scaleX, 1);
-                ctx.translate(-lineX, 0);
-                ctx.fillStyle = 'rgba(107, 42, 107, 0.4)';
-                ctx.fillRect(lineX, Grid.offsetY, foldWidth, Grid.gridHeight * TS);
+            for (let i = 0; i < slices; i++) {
+                const sliceProgress = i / slices;
+                const perspScale = Math.abs(Math.cos(angle));
+                const lift = Math.sin(angle) * (0.5 + sliceProgress * 0.5) * 15;
+                const drawH = gridH * (1 - Math.sin(angle) * 0.04 * sliceProgress);
+                const drawW = sliceW * Math.max(0.02, perspScale);
+                const yOffset = (gridH - drawH) / 2 - lift;
+
+                let sx, dx;
+                if (side === 'left') {
+                    sx = lineX - foldWidth + i * sliceW;
+                    dx = lineX - (i + 1) * drawW;
+                } else {
+                    sx = lineX + i * sliceW;
+                    dx = lineX + i * drawW;
+                }
+
+                const isFront = angle < Math.PI / 2;
+                const brightness = isFront
+                    ? 1 - Math.sin(angle) * 0.3 * sliceProgress
+                    : 0.7 + Math.cos(angle - Math.PI) * 0.3 * (1 - sliceProgress);
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(dx, gridTop + yOffset, drawW + 1, drawH);
+                ctx.clip();
+
+                if (isFront) {
+                    const texCanvas = Effects.getTileCanvas(Grid.PATH);
+                    if (texCanvas) {
+                        ctx.drawImage(texCanvas, dx, gridTop + yOffset, drawW + 1, drawH);
+                    } else {
+                        ctx.fillStyle = '#2a4a6b';
+                        ctx.fillRect(dx, gridTop + yOffset, drawW + 1, drawH);
+                    }
+                } else {
+                    const backTex = Effects.getBackTileCanvas();
+                    if (backTex) {
+                        ctx.drawImage(backTex, dx, gridTop + yOffset, drawW + 1, drawH);
+                    } else {
+                        ctx.fillStyle = '#6b2a6b';
+                        ctx.fillRect(dx, gridTop + yOffset, drawW + 1, drawH);
+                    }
+                }
+
+                ctx.fillStyle = `rgba(0,0,0,${(1 - brightness) * 0.5})`;
+                ctx.fillRect(dx, gridTop + yOffset, drawW + 1, drawH);
+                ctx.restore();
             }
+
+            this._drawFoldShadow(ctx, edge, side, t);
+            this._drawFoldCreaseLine(ctx, lineX, gridTop, lineX, gridTop + gridH, t);
+
         } else {
             const lineY = Grid.offsetY + edge.index * TS;
             const foldHeight = side === 'top' ? edge.index * TS : (Grid.gridHeight - edge.index) * TS;
-            const scaleY = t < 0.5 ? 1 - t * 2 : (t - 0.5) * 2;
+            const gridLeft = Grid.offsetX;
+            const gridW = Grid.gridWidth * TS;
+            const slices = 8;
+            const sliceH = foldHeight / slices;
 
-            if (side === 'top') {
-                ctx.translate(0, lineY);
-                ctx.scale(1, -scaleY);
-                ctx.translate(0, -lineY);
-                ctx.fillStyle = 'rgba(107, 42, 107, 0.4)';
-                ctx.fillRect(Grid.offsetX, lineY - foldHeight, Grid.gridWidth * TS, foldHeight);
-            } else {
-                ctx.translate(0, lineY);
-                ctx.scale(1, scaleY);
-                ctx.translate(0, -lineY);
-                ctx.fillStyle = 'rgba(107, 42, 107, 0.4)';
-                ctx.fillRect(Grid.offsetX, lineY, Grid.gridWidth * TS, foldHeight);
+            for (let i = 0; i < slices; i++) {
+                const sliceProgress = i / slices;
+                const perspScale = Math.abs(Math.cos(angle));
+                const lift = Math.sin(angle) * (0.5 + sliceProgress * 0.5) * 15;
+                const drawW = gridW * (1 - Math.sin(angle) * 0.04 * sliceProgress);
+                const drawH = sliceH * Math.max(0.02, perspScale);
+                const xOffset = (gridW - drawW) / 2;
+
+                let sy, dy;
+                if (side === 'top') {
+                    sy = lineY - foldHeight + i * sliceH;
+                    dy = lineY - (i + 1) * drawH;
+                } else {
+                    sy = lineY + i * sliceH;
+                    dy = lineY + i * drawH;
+                }
+
+                const isFront = angle < Math.PI / 2;
+                const brightness = isFront
+                    ? 1 - Math.sin(angle) * 0.3 * sliceProgress
+                    : 0.7 + Math.cos(angle - Math.PI) * 0.3 * (1 - sliceProgress);
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(gridLeft + xOffset, dy - lift, drawW, drawH + 1);
+                ctx.clip();
+
+                if (isFront) {
+                    const texCanvas = Effects.getTileCanvas(Grid.PATH);
+                    if (texCanvas) {
+                        ctx.drawImage(texCanvas, gridLeft + xOffset, dy - lift, drawW, drawH + 1);
+                    } else {
+                        ctx.fillStyle = '#2a4a6b';
+                        ctx.fillRect(gridLeft + xOffset, dy - lift, drawW, drawH + 1);
+                    }
+                } else {
+                    const backTex = Effects.getBackTileCanvas();
+                    if (backTex) {
+                        ctx.drawImage(backTex, gridLeft + xOffset, dy - lift, drawW, drawH + 1);
+                    } else {
+                        ctx.fillStyle = '#6b2a6b';
+                        ctx.fillRect(gridLeft + xOffset, dy - lift, drawW, drawH + 1);
+                    }
+                }
+
+                ctx.fillStyle = `rgba(0,0,0,${(1 - brightness) * 0.5})`;
+                ctx.fillRect(gridLeft + xOffset, dy - lift, drawW, drawH + 1);
+                ctx.restore();
             }
+
+            this._drawFoldShadow(ctx, edge, side, t);
+            this._drawFoldCreaseLine(ctx, gridLeft, lineY, gridLeft + gridW, lineY, t);
         }
 
+        ctx.restore();
+    },
+
+    _drawFoldShadow(ctx, edge, side, t) {
+        const TS = Grid.TILE_SIZE;
+        const shadowAlpha = Math.sin(t * Math.PI) * 0.3;
+        if (shadowAlpha <= 0) return;
+
+        ctx.save();
+        ctx.globalAlpha = shadowAlpha;
+
+        if (edge.type === 'vertical') {
+            const lineX = Grid.offsetX + edge.index * TS;
+            const shadowW = 20 * Math.sin(t * Math.PI);
+            const grad = ctx.createLinearGradient(
+                side === 'left' ? lineX : lineX - shadowW,
+                0,
+                side === 'left' ? lineX + shadowW : lineX,
+                0
+            );
+            grad.addColorStop(0, side === 'left' ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0)');
+            grad.addColorStop(1, side === 'left' ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.4)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(
+                side === 'left' ? lineX : lineX - shadowW,
+                Grid.offsetY,
+                shadowW,
+                Grid.gridHeight * TS
+            );
+        } else {
+            const lineY = Grid.offsetY + edge.index * TS;
+            const shadowH = 20 * Math.sin(t * Math.PI);
+            const grad = ctx.createLinearGradient(
+                0, side === 'top' ? lineY : lineY - shadowH,
+                0, side === 'top' ? lineY + shadowH : lineY
+            );
+            grad.addColorStop(0, side === 'top' ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0)');
+            grad.addColorStop(1, side === 'top' ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.4)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(
+                Grid.offsetX,
+                side === 'top' ? lineY : lineY - shadowH,
+                Grid.gridWidth * TS,
+                shadowH
+            );
+        }
+        ctx.restore();
+    },
+
+    _drawFoldCreaseLine(ctx, x1, y1, x2, y2, t) {
+        const intensity = Math.sin(t * Math.PI);
+        if (intensity <= 0) return;
+
+        ctx.save();
+        ctx.globalAlpha = intensity * 0.8;
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 1;
+        const offset = x1 === x2 ? 2 : 0;
+        const offsetY = y1 === y2 ? 2 : 0;
+        ctx.beginPath();
+        ctx.moveTo(x1 + offset, y1 + offsetY);
+        ctx.lineTo(x2 + offset, y2 + offsetY);
+        ctx.stroke();
         ctx.restore();
     },
 
@@ -242,6 +407,9 @@ const Fold = {
         ctx.lineWidth = 1;
 
         if (!side) return;
+
+        this._drawFoldArrow(ctx, edge, side);
+
         const tiles = this._getPreviewTiles(edge, side);
         if (!tiles) return;
 
@@ -261,6 +429,44 @@ const Fold = {
             const py = Grid.offsetY + w.y * TS;
             ctx.fillRect(px, py, TS, TS);
         }
+        ctx.restore();
+    },
+
+    _drawFoldArrow(ctx, edge, side) {
+        const TS = Grid.TILE_SIZE;
+        const midY = Grid.offsetY + Grid.gridHeight * TS / 2;
+        const midX = Grid.offsetX + Grid.gridWidth * TS / 2;
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 183, 77, 0.7)';
+        ctx.beginPath();
+
+        if (edge.type === 'vertical') {
+            const x = Grid.offsetX + edge.index * TS;
+            if (side === 'left') {
+                ctx.moveTo(x - 20, midY);
+                ctx.lineTo(x - 8, midY - 10);
+                ctx.lineTo(x - 8, midY + 10);
+            } else {
+                ctx.moveTo(x + 20, midY);
+                ctx.lineTo(x + 8, midY - 10);
+                ctx.lineTo(x + 8, midY + 10);
+            }
+        } else {
+            const y = Grid.offsetY + edge.index * TS;
+            if (side === 'top') {
+                ctx.moveTo(midX, y - 20);
+                ctx.lineTo(midX - 10, y - 8);
+                ctx.lineTo(midX + 10, y - 8);
+            } else {
+                ctx.moveTo(midX, y + 20);
+                ctx.lineTo(midX - 10, y + 8);
+                ctx.lineTo(midX + 10, y + 8);
+            }
+        }
+
+        ctx.closePath();
+        ctx.fill();
         ctx.restore();
     },
 

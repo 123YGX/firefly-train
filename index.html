@@ -9,6 +9,7 @@
 <body>
     <div id="game-container">
         <canvas id="game-canvas"></canvas>
+        <div id="transition-overlay"></div>
         <div id="ui-layer">
             <div id="menu-screen" class="screen active">
                 <h1 class="game-title">萤火与列车</h1>
@@ -25,8 +26,10 @@
             <div id="game-screen" class="screen">
                 <div id="game-hud">
                     <span id="hud-chapter"></span>
+                    <span id="hud-folds"></span>
                     <span id="hud-level"></span>
                     <div id="hud-buttons">
+                        <button id="btn-mute" class="hud-btn" title="静音">♪</button>
                         <button id="btn-undo" class="hud-btn" title="撤销">↩</button>
                         <button id="btn-reset" class="hud-btn" title="重置">↺</button>
                         <button id="btn-hint" class="hud-btn" title="教程">?</button>
@@ -66,6 +69,7 @@
             <div id="complete-screen" class="screen">
                 <div class="complete-box">
                     <h2 id="complete-title"></h2>
+                    <div id="complete-stars"></div>
                     <p id="complete-text"></p>
                     <button id="btn-next-level" class="menu-btn">下一关</button>
                 </div>
