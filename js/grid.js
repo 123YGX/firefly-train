@@ -77,10 +77,23 @@ const Grid = {
 
     draw(ctx) {
         const TS = this.TILE_SIZE;
-        const gap = 2;
-        const radius = 6;
+        const gap = 1;
+        const radius = 3;
 
         Effects.generateChapterTextures(Levels.currentChapter);
+
+        const gridW = this.gridWidth * TS;
+        const gridH = this.gridHeight * TS;
+        const pad = 16;
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+        ctx.shadowBlur = 24;
+        ctx.shadowOffsetY = 6;
+        ctx.fillStyle = 'rgba(245,235,215,0.92)';
+        this._roundRect(ctx, this.offsetX - pad, this.offsetY - pad, gridW + pad*2, gridH + pad*2, 8);
+        ctx.fill();
+        ctx.restore();
 
         for (let y = 0; y < this.gridHeight; y++) {
             for (let x = 0; x < this.gridWidth; x++) {
@@ -90,57 +103,74 @@ const Grid = {
                 const tw = TS - gap * 2;
                 const th = TS - gap * 2;
 
-                const texCanvas = Effects.getTileCanvas(tile);
-                if (texCanvas) {
+                const isWallTile = (tile === this.WALL || tile === this.EMPTY);
+                const isPathTile = !isWallTile;
+                const variantImg = Effects.getVariantTile(
+                    Levels.currentChapter,
+                    isWallTile ? 'wall' : 'path',
+                    x, y
+                );
+
+                if (variantImg) {
+                    try {
+                        const buf = this._getTileBuffer(TS);
+                        const bx = buf.getContext('2d');
+                        bx.clearRect(0, 0, TS, TS);
+                        bx.drawImage(variantImg, 0, 0, TS, TS);
+                        if (isPathTile) {
+                            const grad = bx.createRadialGradient(TS/2, TS/2, TS*0.2, TS/2, TS/2, TS*0.7);
+                            grad.addColorStop(0, 'rgba(255,235,200,0.18)');
+                            grad.addColorStop(1, 'rgba(255,235,200,0)');
+                            bx.fillStyle = grad;
+                            bx.fillRect(0, 0, TS, TS);
+                        }
+                        const mask = Effects.getEdgeMaskFor(x, y);
+                        if (mask) {
+                            bx.globalCompositeOperation = 'destination-in';
+                            bx.drawImage(mask, 0, 0, TS, TS);
+                            bx.globalCompositeOperation = 'source-over';
+                        }
+                        ctx.drawImage(buf, this.offsetX + x * TS, this.offsetY + y * TS);
+                    } catch (e) {
+                        ctx.drawImage(variantImg, this.offsetX + x * TS, this.offsetY + y * TS, TS, TS);
+                    }
+                } else {
                     ctx.save();
                     ctx.beginPath();
                     this._roundRect(ctx, px, py, tw, th, radius);
                     ctx.clip();
-                    ctx.drawImage(texCanvas, px, py, tw, th);
+
+                    const texImg = Effects.getTileCanvas(tile);
+                    if (texImg) {
+                        const off = Effects._getTileOffset(x, y);
+                        ctx.drawImage(texImg, off.ox, off.oy, tw, th, px, py, tw, th);
+                    } else {
+                        ctx.fillStyle = this.colors.front[tile] || '#1e2a3a';
+                        ctx.fillRect(px, py, tw, th);
+                    }
+
+                    if (tile !== this.WALL && tile !== this.EMPTY) {
+                        const glow = ctx.createRadialGradient(px + tw/2, py + th/2, tw*0.2, px + tw/2, py + th/2, tw*0.7);
+                        glow.addColorStop(0, 'rgba(255,235,200,0.12)');
+                        glow.addColorStop(1, 'rgba(255,235,200,0)');
+                        ctx.fillStyle = glow;
+                        ctx.fillRect(px, py, tw, th);
+                    }
+
                     ctx.restore();
-                } else {
-                    ctx.fillStyle = this.colors.front[tile] || '#1e2a3a';
-                    ctx.beginPath();
-                    this._roundRect(ctx, px, py, tw, th, radius);
-                    ctx.fill();
                 }
 
                 const cx = px + tw / 2, cy = py + th / 2;
 
+                if (tile === this.START || tile === this.END || tile === this.COLLECTIBLE) {
+                    this._drawWarmHalo(ctx, cx, cy, tile === this.COLLECTIBLE ? '#c8ff32' : '#ffb74d');
+                }
+
                 if (tile === this.START) {
-                    const pulse = 0.4 + 0.2 * Math.sin(Date.now() / 400);
-                    ctx.save();
-                    ctx.globalAlpha = pulse;
-                    ctx.shadowColor = '#4caf50';
-                    ctx.shadowBlur = 15;
-                    ctx.fillStyle = '#4caf50';
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, 12, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-                    ctx.fillStyle = 'rgba(255,255,255,0.8)';
-                    ctx.font = '16px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('▶', cx, cy);
+                    this._drawStamp(ctx, cx, cy, '始', '#c2392f', 0);
                 } else if (tile === this.END) {
-                    const rot = Date.now() / 1000;
-                    ctx.save();
-                    ctx.strokeStyle = '#ffb74d';
-                    ctx.lineWidth = 2;
-                    ctx.globalAlpha = 0.6;
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, 14, rot, rot + Math.PI * 1.5);
-                    ctx.stroke();
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, 8, rot + Math.PI, rot + Math.PI * 2.5);
-                    ctx.stroke();
-                    ctx.restore();
-                    ctx.fillStyle = '#ffb74d';
-                    ctx.font = '18px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('★', cx, cy);
+                    const breathe = Math.sin(Date.now() / 600) * 1.5;
+                    this._drawStamp(ctx, cx, cy, '终', '#d4a017', breathe);
                 } else if (tile === this.COLLECTIBLE) {
                     const pulse = 0.4 + 0.3 * Math.sin(Date.now() / 300 + x * 0.7);
                     ctx.save();
@@ -202,6 +232,55 @@ const Grid = {
         ctx.quadraticCurveTo(x, y + h, x, y + h - r);
         ctx.lineTo(x, y + r);
         ctx.quadraticCurveTo(x, y, x + r, y);
+    },
+
+    _tileBuffer: null,
+    _getTileBuffer(size) {
+        if (!this._tileBuffer || this._tileBuffer.width !== size) {
+            this._tileBuffer = document.createElement('canvas');
+            this._tileBuffer.width = size;
+            this._tileBuffer.height = size;
+        }
+        return this._tileBuffer;
+    },
+
+    _drawWarmHalo(ctx, cx, cy, color) {
+        const r = this.TILE_SIZE * 0.7;
+        const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, r);
+        grad.addColorStop(0, color === '#c8ff32' ? 'rgba(200,255,50,0.45)' : 'rgba(255,183,77,0.45)');
+        grad.addColorStop(0.5, color === '#c8ff32' ? 'rgba(200,255,50,0.12)' : 'rgba(255,183,77,0.15)');
+        grad.addColorStop(1, 'rgba(255,183,77,0)');
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    },
+
+    _drawStamp(ctx, cx, cy, text, color, yOffset) {
+        ctx.save();
+        ctx.translate(cx, cy + (yOffset || 0));
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.arc(0, 0, 16, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, 14, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = color;
+        ctx.font = 'bold 18px "Microsoft YaHei", serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 0, 1);
+
+        ctx.restore();
     },
 
     screenToGrid(sx, sy) {

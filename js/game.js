@@ -4,6 +4,7 @@ const Game = {
     state: 'menu',
     levelComplete: false,
     storyQueue: [],
+    _bgCache: { menu: null, scene: {} },
 
     init() {
         this.canvas = document.getElementById('game-canvas');
@@ -248,30 +249,58 @@ const Game = {
     },
 
     drawBackground() {
-        const colors = [
-            ['#f5e6c8', '#e8d5a3'],  // Ch1 午后暖黄
-            ['#e8c49a', '#d4a574'],  // Ch2 傍晚橙棕
-            ['#c47a5a', '#6b3a5a'],  // Ch3 黄昏橙紫
-            ['#2a4a6b', '#1a3a4a'],  // Ch4 暮色深蓝青
-            ['#1a2a4a', '#0f1a3a'],  // Ch5 夜晚深蓝
-            ['#2a1a4a', '#3a2a1a']   // Ch6 深紫→暖金
-        ];
-        const [c1, c2] = colors[Levels.currentChapter] || colors[0];
-        const grad = this.ctx.createLinearGradient(0, 0, 1400, 900);
-        grad.addColorStop(0, c1);
-        grad.addColorStop(1, c2);
-        this.ctx.fillStyle = grad;
-        this.ctx.fillRect(0, 0, 1400, 900);
+        const ch = Levels.currentChapter + 1;
+        const bgImg = Effects.images.backgrounds[`ch${ch}`];
+        if (Effects._isReady(bgImg)) {
+            this.ctx.drawImage(bgImg, 0, 0, 1400, 900);
+            return;
+        }
+        this.ctx.drawImage(this._getSceneBg(Levels.currentChapter), 0, 0);
+    },
+
+    _getSceneBg(chapter) {
+        if (!this._bgCache.scene[chapter]) {
+            const colors = [
+                ['#f5e6c8', '#e8d5a3'],
+                ['#e8c49a', '#d4a574'],
+                ['#c47a5a', '#6b3a5a'],
+                ['#2a4a6b', '#1a3a4a'],
+                ['#1a2a4a', '#0f1a3a'],
+                ['#2a1a4a', '#3a2a1a']
+            ];
+            const [c1, c2] = colors[chapter] || colors[0];
+            const c = document.createElement('canvas');
+            c.width = 1400; c.height = 900;
+            const cx = c.getContext('2d');
+            const g = cx.createLinearGradient(0, 0, 1400, 900);
+            g.addColorStop(0, c1);
+            g.addColorStop(1, c2);
+            cx.fillStyle = g;
+            cx.fillRect(0, 0, 1400, 900);
+            this._bgCache.scene[chapter] = c;
+        }
+        return this._bgCache.scene[chapter];
+    },
+
+    _getMenuBg() {
+        if (!this._bgCache.menu) {
+            const c = document.createElement('canvas');
+            c.width = 1400; c.height = 900;
+            const cx = c.getContext('2d');
+            const g = cx.createLinearGradient(0, 0, 1400, 900);
+            g.addColorStop(0, '#1a1a2e');
+            g.addColorStop(0.5, '#16213e');
+            g.addColorStop(1, '#0f3460');
+            cx.fillStyle = g;
+            cx.fillRect(0, 0, 1400, 900);
+            this._bgCache.menu = c;
+        }
+        return this._bgCache.menu;
     },
 
     drawMenuBackground() {
         const ctx = this.ctx;
-        const grad = ctx.createLinearGradient(0, 0, 1400, 900);
-        grad.addColorStop(0, '#1a1a2e');
-        grad.addColorStop(0.5, '#16213e');
-        grad.addColorStop(1, '#0f3460');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 1400, 900);
+        ctx.drawImage(this._getMenuBg(), 0, 0);
 
         Effects.updateBgFireflies();
         Effects.drawBgFireflies(ctx);
@@ -298,7 +327,15 @@ const Game = {
             this.drawMenuBackground();
         } else if (this.state === 'playing' || this.state === 'complete') {
             this.drawBackground();
-            Effects.drawSceneEnvironment(this.ctx, Levels.currentChapter);
+            const bgReady = Effects._isReady(Effects.images.backgrounds[`ch${Levels.currentChapter + 1}`]);
+            if (bgReady) {
+                this.ctx.save();
+                this.ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                this.ctx.fillRect(0, 0, 1400, 900);
+                this.ctx.restore();
+            } else {
+                Effects.drawSceneEnvironment(this.ctx, Levels.currentChapter);
+            }
             Effects.updateBgFireflies();
             Effects.drawBgFireflies(this.ctx);
             Grid.draw(this.ctx);
@@ -308,6 +345,10 @@ const Game = {
             Player.draw(this.ctx);
             Particles.update();
             Particles.draw(this.ctx);
+
+            if (Effects._isReady(Effects.images.paperFrame)) {
+                this.ctx.drawImage(Effects.images.paperFrame, 0, 0, 1400, 900);
+            }
 
             if (Fold.animating) {
                 const done = Fold.updateAnimation();

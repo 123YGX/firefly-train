@@ -11,59 +11,34 @@ const Player = {
     moveSpeed: 4,
     size: 20,
     collected: 0,
-    sprite: null,
-    spriteLoaded: false,
+    sprites: { side: null, front: null, back: null },
     facingRight: true,
-    direction: 'down',
+    direction: 'front',
     frameIndex: 0,
     frameTick: 0,
-    walkFrames: null,
-    idleFrame: null,
 
     loadSprite() {
-        this.sprite = new Image();
-        this.sprite.onload = () => {
-            this.spriteLoaded = true;
-            this._generateFrames();
+        const load = (name, path) => {
+            const img = new Image();
+            img.src = path;
+            this.sprites[name] = img;
         };
-        this.sprite.src = 'assets/character/sprite.jpg';
+        load('side', 'assets/character/walk_side.png');
+        load('front', 'assets/character/walk_front.png');
+        load('back', 'assets/character/walk_back.png');
     },
 
-    _generateFrames() {
-        const sw = this.sprite.naturalWidth;
-        const sh = this.sprite.naturalHeight;
-        const fw = Math.floor(sw * 0.3);
-        const fh = Math.floor(sh * 0.9);
-        const charH = 56;
-        const charW = Math.floor(charH * (fw / fh));
+    _isReady(img) {
+        return img && img.complete && img.naturalWidth > 0;
+    },
 
-        this.idleFrame = this._cropFrame(0, sh*0.05, fw, fh, charW, charH);
-
-        this.walkFrames = [];
-        for (let i = 0; i < 4; i++) {
-            const c = document.createElement('canvas');
-            c.width = charW; c.height = charH;
-            const ctx = c.getContext('2d');
-            ctx.drawImage(this.sprite, 0, sh*0.05, fw, fh, 0, 0, charW, charH);
-
-            if (i === 1 || i === 3) {
-                ctx.save();
-                ctx.globalCompositeOperation = 'source-atop';
-                const shift = (i === 1) ? -1 : 1;
-                ctx.translate(shift, -1);
-                ctx.drawImage(c, 0, 0);
-                ctx.restore();
-            }
-            this.walkFrames.push(c);
+    _updateFacing(dx, dy) {
+        if (Math.abs(dx) >= Math.abs(dy)) {
+            this.direction = 'side';
+            this.facingRight = dx >= 0;
+        } else {
+            this.direction = dy > 0 ? 'front' : 'back';
         }
-    },
-
-    _cropFrame(sx, sy, sw, sh, dw, dh) {
-        const c = document.createElement('canvas');
-        c.width = dw; c.height = dh;
-        const ctx = c.getContext('2d');
-        ctx.drawImage(this.sprite, sx, sy, sw, sh, 0, 0, dw, dh);
-        return c;
     },
 
     init(startX, startY) {
@@ -74,52 +49,64 @@ const Player = {
         this.moving = false;
         this.path = [];
         this.collected = 0;
+
+        const end = Grid.findEnd();
+        this._updateFacing(end.x - startX, end.y - startY);
     },
 
     findPath(endX, endY) {
-        const queue = [{ x: this.x, y: this.y, path: [] }];
-        const visited = new Set();
-        visited.add(`${this.x},${this.y}`);
-        const dirs = [
-            { dx: 0, dy: -1 },
-            { dx: 1, dy: 0 },
-            { dx: 0, dy: 1 },
-            { dx: -1, dy: 0 }
-        ];
+        const grid = Grid.displayGrid;
+        if (!grid || !grid.length) return null;
+        const w = grid[0].length;
+        const startKey = this.y * w + this.x;
+        const endKey = endY * w + endX;
 
-        while (queue.length > 0) {
-            const current = queue.shift();
-            if (current.x === endX && current.y === endY) {
-                return current.path.concat({ x: endX, y: endY });
+        const parent = new Map();
+        parent.set(startKey, null);
+        const queue = [{ x: this.x, y: this.y, k: startKey }];
+        let head = 0;
+        const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
+        const reconstruct = () => {
+            const out = [];
+            let k = endKey;
+            while (k !== startKey) {
+                const node = parent.get(k);
+                out.push(node.teleport
+                    ? { x: node.x, y: node.y, teleport: true }
+                    : { x: node.x, y: node.y });
+                k = node.prev;
             }
+            out.reverse();
+            return out;
+        };
 
-            const currentTile = Grid.getTile(current.x, current.y);
-            if (currentTile === Grid.TELEPORT_A || currentTile === Grid.TELEPORT_B) {
-                const exit = Grid.findTeleportPair(currentTile);
+        while (head < queue.length) {
+            const cur = queue[head++];
+            if (cur.k === endKey) return reconstruct();
+
+            const tile = Grid.getTile(cur.x, cur.y);
+            if (tile === Grid.TELEPORT_A || tile === Grid.TELEPORT_B) {
+                const exit = Grid.findTeleportPair(tile);
                 if (exit) {
-                    const key = `${exit.x},${exit.y}`;
-                    if (!visited.has(key)) {
-                        visited.add(key);
-                        queue.push({
-                            x: exit.x, y: exit.y,
-                            path: current.path.concat({ x: exit.x, y: exit.y, teleport: true })
-                        });
+                    const ek = exit.y * w + exit.x;
+                    if (!parent.has(ek)) {
+                        parent.set(ek, { prev: cur.k, x: exit.x, y: exit.y, teleport: true });
+                        queue.push({ x: exit.x, y: exit.y, k: ek });
                     }
                 }
             }
 
-            for (const dir of dirs) {
-                const nx = current.x + dir.dx;
-                const ny = current.y + dir.dy;
-                const key = `${nx},${ny}`;
-                if (visited.has(key) || !Grid.isWalkable(nx, ny)) continue;
-                if (!Grid.canExitTo(current.x, current.y, dir.dx, dir.dy)) continue;
-                if (!Grid.canEnterFrom(nx, ny, dir.dx, dir.dy)) continue;
-                visited.add(key);
-                queue.push({
-                    x: nx, y: ny,
-                    path: current.path.concat({ x: nx, y: ny })
-                });
+            for (let i = 0; i < 4; i++) {
+                const dx = dirs[i][0], dy = dirs[i][1];
+                const nx = cur.x + dx, ny = cur.y + dy;
+                const nk = ny * w + nx;
+                if (parent.has(nk)) continue;
+                if (!Grid.isWalkable(nx, ny)) continue;
+                if (!Grid.canExitTo(cur.x, cur.y, dx, dy)) continue;
+                if (!Grid.canEnterFrom(nx, ny, dx, dy)) continue;
+                parent.set(nk, { prev: cur.k, x: nx, y: ny, teleport: false });
+                queue.push({ x: nx, y: ny, k: nk });
             }
         }
         return null;
@@ -157,8 +144,7 @@ const Player = {
             }
             this.targetX = Grid.offsetX + next.x * Grid.TILE_SIZE + Grid.TILE_SIZE / 2;
             this.targetY = Grid.offsetY + next.y * Grid.TILE_SIZE + Grid.TILE_SIZE / 2;
-            if (next.x > this.x) this.facingRight = true;
-            else if (next.x < this.x) this.facingRight = false;
+            this._updateFacing(next.x - this.x, next.y - this.y);
         }
     },
 
@@ -241,21 +227,22 @@ const Player = {
         ctx.fill();
         ctx.restore();
 
-        const frame = (this.moving && this.walkFrames)
-            ? this.walkFrames[this.frameIndex]
-            : this.idleFrame;
+        const img = this.sprites[this.direction];
+        if (this._isReady(img)) {
+            const frameW = Math.floor(img.naturalWidth / 4);
+            const frameH = img.naturalHeight;
+            const charH = 68;
+            const charW = Math.floor(charH * (frameW / frameH));
+            const sx = (this.moving ? this.frameIndex : 0) * frameW;
 
-        if (frame) {
-            const dw = frame.width;
-            const dh = frame.height;
             ctx.save();
-
-            if (!this.facingRight) {
-                ctx.translate(this.pixelX, this.pixelY - dh/2 + breathe);
+            const flip = (this.direction === 'side' && !this.facingRight);
+            if (flip) {
+                ctx.translate(this.pixelX, this.pixelY - charH/2 + breathe);
                 ctx.scale(-1, 1);
-                ctx.drawImage(frame, -dw/2, 0, dw, dh);
+                ctx.drawImage(img, sx, 0, frameW, frameH, -charW/2, 0, charW, charH);
             } else {
-                ctx.drawImage(frame, this.pixelX - dw/2, this.pixelY - dh/2 + breathe, dw, dh);
+                ctx.drawImage(img, sx, 0, frameW, frameH, this.pixelX - charW/2, this.pixelY - charH/2 + breathe, charW, charH);
             }
             ctx.restore();
         } else {

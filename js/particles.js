@@ -1,5 +1,6 @@
 const Particles = {
     pools: [],
+    MAX: 240,
 
     emit({x, y, count, colors, speed, life, gravity, size, friction}) {
         count = count || 20;
@@ -25,6 +26,9 @@ const Particles = {
                 gravity: gravity,
                 friction: friction
             });
+        }
+        if (this.pools.length > this.MAX) {
+            this.pools.splice(0, this.pools.length - this.MAX);
         }
     },
 

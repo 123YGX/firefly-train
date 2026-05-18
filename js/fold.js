@@ -6,7 +6,7 @@ const Fold = {
     hoveredSide: null,
     animating: false,
     animProgress: 0,
-    animDuration: 30,
+    animDuration: 45,
     animEdge: null,
     animSide: null,
     pendingDisplay: null,
@@ -150,11 +150,18 @@ const Fold = {
 
     drawFoldAnimation(ctx) {
         if (!this.animating) return;
-        const t = this.animProgress / this.animDuration;
+        const linearT = this.animProgress / this.animDuration;
+        const t = linearT < 0.5
+            ? 2 * linearT * linearT
+            : 1 - Math.pow(-2 * linearT + 2, 2) / 2;
         const edge = this.animEdge;
         const side = this.animSide;
         const TS = Grid.TILE_SIZE;
         const angle = t * Math.PI;
+        const sinA = Math.sin(angle);
+        const cosA = Math.cos(angle);
+        const isFront = angle < Math.PI / 2;
+        const slices = 16;
 
         ctx.save();
 
@@ -163,60 +170,60 @@ const Fold = {
             const foldWidth = side === 'left' ? edge.index * TS : (Grid.gridWidth - edge.index) * TS;
             const gridTop = Grid.offsetY;
             const gridH = Grid.gridHeight * TS;
-            const slices = 8;
             const sliceW = foldWidth / slices;
+            const dirSign = side === 'left' ? -1 : 1;
 
-            for (let i = 0; i < slices; i++) {
-                const sliceProgress = i / slices;
-                const perspScale = Math.abs(Math.cos(angle));
-                const lift = Math.sin(angle) * (0.5 + sliceProgress * 0.5) * 15;
-                const drawH = gridH * (1 - Math.sin(angle) * 0.04 * sliceProgress);
-                const drawW = sliceW * Math.max(0.02, perspScale);
-                const yOffset = (gridH - drawH) / 2 - lift;
-
-                let sx, dx;
-                if (side === 'left') {
-                    sx = lineX - foldWidth + i * sliceW;
-                    dx = lineX - (i + 1) * drawW;
-                } else {
-                    sx = lineX + i * sliceW;
-                    dx = lineX + i * drawW;
-                }
-
-                const isFront = angle < Math.PI / 2;
-                const brightness = isFront
-                    ? 1 - Math.sin(angle) * 0.3 * sliceProgress
-                    : 0.7 + Math.cos(angle - Math.PI) * 0.3 * (1 - sliceProgress);
-
+            const dropShadowAlpha = sinA * 0.5;
+            if (dropShadowAlpha > 0) {
                 ctx.save();
+                ctx.fillStyle = `rgba(0,0,0,${dropShadowAlpha * 0.4})`;
+                const sx = lineX + dirSign * 8;
                 ctx.beginPath();
-                ctx.rect(dx, gridTop + yOffset, drawW + 1, drawH);
-                ctx.clip();
-
-                if (isFront) {
-                    const texCanvas = Effects.getTileCanvas(Grid.PATH);
-                    if (texCanvas) {
-                        ctx.drawImage(texCanvas, dx, gridTop + yOffset, drawW + 1, drawH);
-                    } else {
-                        ctx.fillStyle = '#2a4a6b';
-                        ctx.fillRect(dx, gridTop + yOffset, drawW + 1, drawH);
-                    }
-                } else {
-                    const backTex = Effects.getBackTileCanvas();
-                    if (backTex) {
-                        ctx.drawImage(backTex, dx, gridTop + yOffset, drawW + 1, drawH);
-                    } else {
-                        ctx.fillStyle = '#6b2a6b';
-                        ctx.fillRect(dx, gridTop + yOffset, drawW + 1, drawH);
-                    }
-                }
-
-                ctx.fillStyle = `rgba(0,0,0,${(1 - brightness) * 0.5})`;
-                ctx.fillRect(dx, gridTop + yOffset, drawW + 1, drawH);
+                ctx.ellipse(sx, gridTop + gridH/2, foldWidth * 0.4 * Math.abs(cosA) + 20, gridH * 0.5, 0, 0, Math.PI * 2);
+                ctx.fill();
                 ctx.restore();
             }
 
-            this._drawFoldShadow(ctx, edge, side, t);
+            for (let i = 0; i < slices; i++) {
+                const sliceProgress = (i + 0.5) / slices;
+                const archHeight = sinA * 25;
+                const yLift = -archHeight * Math.sin(sliceProgress * Math.PI);
+                const drawW = sliceW * Math.max(0.01, Math.abs(cosA));
+                const dx = lineX + dirSign * (sliceProgress * foldWidth * Math.abs(cosA));
+                const sliceX = dx - (dirSign === -1 ? drawW : 0);
+
+                const lightFactor = isFront
+                    ? 1 - sinA * 0.25 * sliceProgress
+                    : 0.65 + cosA * cosA * 0.3;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(sliceX, gridTop + yLift, drawW + 1, gridH);
+                ctx.clip();
+
+                const tex = isFront ? Effects.getTileCanvas(Grid.PATH) : Effects.getBackTileCanvas();
+                if (tex) {
+                    const sliceImgX = side === 'left'
+                        ? (lineX - foldWidth) + sliceProgress * foldWidth - sliceW/2
+                        : lineX + sliceProgress * foldWidth - sliceW/2;
+                    if (isFront) {
+                        ctx.drawImage(tex, sliceX, gridTop + yLift, drawW + 1, gridH);
+                    } else {
+                        ctx.drawImage(tex, sliceX, gridTop + yLift, drawW + 1, gridH);
+                    }
+                }
+
+                ctx.fillStyle = `rgba(0,0,0,${(1 - lightFactor) * 0.55})`;
+                ctx.fillRect(sliceX, gridTop + yLift, drawW + 1, gridH);
+
+                if (isFront && sliceProgress > 0.85) {
+                    ctx.fillStyle = `rgba(255,255,240,${sinA * 0.25})`;
+                    ctx.fillRect(sliceX, gridTop + yLift, drawW + 1, gridH);
+                }
+
+                ctx.restore();
+            }
+
             this._drawFoldCreaseLine(ctx, lineX, gridTop, lineX, gridTop + gridH, t);
 
         } else {
@@ -224,109 +231,56 @@ const Fold = {
             const foldHeight = side === 'top' ? edge.index * TS : (Grid.gridHeight - edge.index) * TS;
             const gridLeft = Grid.offsetX;
             const gridW = Grid.gridWidth * TS;
-            const slices = 8;
             const sliceH = foldHeight / slices;
+            const dirSign = side === 'top' ? -1 : 1;
 
-            for (let i = 0; i < slices; i++) {
-                const sliceProgress = i / slices;
-                const perspScale = Math.abs(Math.cos(angle));
-                const lift = Math.sin(angle) * (0.5 + sliceProgress * 0.5) * 15;
-                const drawW = gridW * (1 - Math.sin(angle) * 0.04 * sliceProgress);
-                const drawH = sliceH * Math.max(0.02, perspScale);
-                const xOffset = (gridW - drawW) / 2;
-
-                let sy, dy;
-                if (side === 'top') {
-                    sy = lineY - foldHeight + i * sliceH;
-                    dy = lineY - (i + 1) * drawH;
-                } else {
-                    sy = lineY + i * sliceH;
-                    dy = lineY + i * drawH;
-                }
-
-                const isFront = angle < Math.PI / 2;
-                const brightness = isFront
-                    ? 1 - Math.sin(angle) * 0.3 * sliceProgress
-                    : 0.7 + Math.cos(angle - Math.PI) * 0.3 * (1 - sliceProgress);
-
+            const dropShadowAlpha = sinA * 0.5;
+            if (dropShadowAlpha > 0) {
                 ctx.save();
+                ctx.fillStyle = `rgba(0,0,0,${dropShadowAlpha * 0.4})`;
+                const sy = lineY + dirSign * 8;
                 ctx.beginPath();
-                ctx.rect(gridLeft + xOffset, dy - lift, drawW, drawH + 1);
-                ctx.clip();
-
-                if (isFront) {
-                    const texCanvas = Effects.getTileCanvas(Grid.PATH);
-                    if (texCanvas) {
-                        ctx.drawImage(texCanvas, gridLeft + xOffset, dy - lift, drawW, drawH + 1);
-                    } else {
-                        ctx.fillStyle = '#2a4a6b';
-                        ctx.fillRect(gridLeft + xOffset, dy - lift, drawW, drawH + 1);
-                    }
-                } else {
-                    const backTex = Effects.getBackTileCanvas();
-                    if (backTex) {
-                        ctx.drawImage(backTex, gridLeft + xOffset, dy - lift, drawW, drawH + 1);
-                    } else {
-                        ctx.fillStyle = '#6b2a6b';
-                        ctx.fillRect(gridLeft + xOffset, dy - lift, drawW, drawH + 1);
-                    }
-                }
-
-                ctx.fillStyle = `rgba(0,0,0,${(1 - brightness) * 0.5})`;
-                ctx.fillRect(gridLeft + xOffset, dy - lift, drawW, drawH + 1);
+                ctx.ellipse(gridLeft + gridW/2, sy, gridW * 0.5, foldHeight * 0.4 * Math.abs(cosA) + 20, 0, 0, Math.PI * 2);
+                ctx.fill();
                 ctx.restore();
             }
 
-            this._drawFoldShadow(ctx, edge, side, t);
+            for (let i = 0; i < slices; i++) {
+                const sliceProgress = (i + 0.5) / slices;
+                const archHeight = sinA * 25;
+                const xLift = -archHeight * Math.sin(sliceProgress * Math.PI);
+                const drawH = sliceH * Math.max(0.01, Math.abs(cosA));
+                const dy = lineY + dirSign * (sliceProgress * foldHeight * Math.abs(cosA));
+                const sliceY = dy - (dirSign === -1 ? drawH : 0);
+
+                const lightFactor = isFront
+                    ? 1 - sinA * 0.25 * sliceProgress
+                    : 0.65 + cosA * cosA * 0.3;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(gridLeft + xLift, sliceY, gridW, drawH + 1);
+                ctx.clip();
+
+                const tex = isFront ? Effects.getTileCanvas(Grid.PATH) : Effects.getBackTileCanvas();
+                if (tex) {
+                    ctx.drawImage(tex, gridLeft + xLift, sliceY, gridW, drawH + 1);
+                }
+
+                ctx.fillStyle = `rgba(0,0,0,${(1 - lightFactor) * 0.55})`;
+                ctx.fillRect(gridLeft + xLift, sliceY, gridW, drawH + 1);
+
+                if (isFront && sliceProgress > 0.85) {
+                    ctx.fillStyle = `rgba(255,255,240,${sinA * 0.25})`;
+                    ctx.fillRect(gridLeft + xLift, sliceY, gridW, drawH + 1);
+                }
+
+                ctx.restore();
+            }
+
             this._drawFoldCreaseLine(ctx, gridLeft, lineY, gridLeft + gridW, lineY, t);
         }
 
-        ctx.restore();
-    },
-
-    _drawFoldShadow(ctx, edge, side, t) {
-        const TS = Grid.TILE_SIZE;
-        const shadowAlpha = Math.sin(t * Math.PI) * 0.3;
-        if (shadowAlpha <= 0) return;
-
-        ctx.save();
-        ctx.globalAlpha = shadowAlpha;
-
-        if (edge.type === 'vertical') {
-            const lineX = Grid.offsetX + edge.index * TS;
-            const shadowW = 20 * Math.sin(t * Math.PI);
-            const grad = ctx.createLinearGradient(
-                side === 'left' ? lineX : lineX - shadowW,
-                0,
-                side === 'left' ? lineX + shadowW : lineX,
-                0
-            );
-            grad.addColorStop(0, side === 'left' ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0)');
-            grad.addColorStop(1, side === 'left' ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.4)');
-            ctx.fillStyle = grad;
-            ctx.fillRect(
-                side === 'left' ? lineX : lineX - shadowW,
-                Grid.offsetY,
-                shadowW,
-                Grid.gridHeight * TS
-            );
-        } else {
-            const lineY = Grid.offsetY + edge.index * TS;
-            const shadowH = 20 * Math.sin(t * Math.PI);
-            const grad = ctx.createLinearGradient(
-                0, side === 'top' ? lineY : lineY - shadowH,
-                0, side === 'top' ? lineY + shadowH : lineY
-            );
-            grad.addColorStop(0, side === 'top' ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0)');
-            grad.addColorStop(1, side === 'top' ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.4)');
-            ctx.fillStyle = grad;
-            ctx.fillRect(
-                Grid.offsetX,
-                side === 'top' ? lineY : lineY - shadowH,
-                Grid.gridWidth * TS,
-                shadowH
-            );
-        }
         ctx.restore();
     },
 

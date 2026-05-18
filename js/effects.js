@@ -3,64 +3,241 @@ const Effects = {
     bgFireflies: [],
     initialized: false,
     currentChapter: -1,
+    images: { tiles: {}, decor: {}, backgrounds: {}, paperBack: null },
 
     init() {
         if (this.initialized) return;
         this.initialized = true;
         this._initBgFireflies();
+        this._loadImages();
+    },
+
+    _loadImages() {
+        const load = (path) => {
+            const img = new Image();
+            img.src = path;
+            return img;
+        };
+        for (let i = 1; i <= 6; i++) {
+            this.images.tiles[`ch${i}_path`] = load(`assets/tiles/ch${i}_path.jpg`);
+            this.images.tiles[`ch${i}_wall`] = load(`assets/tiles/ch${i}_wall.jpg`);
+            this.images.backgrounds[`ch${i}`] = load(`assets/backgrounds/ch${i}_bg.jpg`);
+            for (const v of ['a', 'b', 'c']) {
+                this.images.tiles[`ch${i}_path_${v}`] = load(`assets/tiles/ch${i}_path_${v}.png`);
+            }
+            for (const v of ['a', 'b']) {
+                this.images.tiles[`ch${i}_wall_${v}`] = load(`assets/tiles/ch${i}_wall_${v}.png`);
+            }
+        }
+        this.images.paperBack = load('assets/tiles/paper_back.jpg');
+        this.images.paperOverlay = load('assets/textures/paper_overlay.jpg');
+        this.images.paperCrease = load('assets/textures/paper_crease.jpg');
+        this.images.paperFrame = load('assets/textures/paper_frame.png');
+        this.images.edgeMasks = [];
+        for (let i = 1; i <= 6; i++) {
+            this.images.edgeMasks.push(load(`assets/textures/edge_mask_${i}.png`));
+        }
+        ['trees','lanterns','moon','mountains','boat','train','fireflies_decor'].forEach(n => {
+            this.images.decor[n] = load(`assets/decor/${n}.jpg`);
+        });
+        this.images.decor.stilted_house = load('assets/decor/stilted_house.png');
+    },
+
+    _processedEdgeMasks: [],
+    _getEdgeMask(idx) {
+        if (this._processedEdgeMasks[idx] !== undefined) return this._processedEdgeMasks[idx];
+        const img = this.images.edgeMasks && this.images.edgeMasks[idx];
+        if (this._isReady(img)) {
+            try {
+                const c = document.createElement('canvas');
+                c.width = img.naturalWidth;
+                c.height = img.naturalHeight;
+                const cx = c.getContext('2d');
+                cx.drawImage(img, 0, 0);
+                const data = cx.getImageData(0, 0, c.width, c.height);
+                const d = data.data;
+                for (let i = 0; i < d.length; i += 4) {
+                    const lum = d[i];
+                    d[i] = 255; d[i + 1] = 255; d[i + 2] = 255;
+                    d[i + 3] = lum;
+                }
+                cx.putImageData(data, 0, 0);
+                this._processedEdgeMasks[idx] = c;
+                return c;
+            } catch (e) {
+                // getImageData blocked under file:// (canvas tainted by cross-origin image)
+                // fall through to procedural mask
+            }
+        }
+        this._processedEdgeMasks[idx] = this._buildProceduralMask(idx);
+        return this._processedEdgeMasks[idx];
+    },
+
+    _buildProceduralMask(seed) {
+        const size = 256;
+        const c = document.createElement('canvas');
+        c.width = size; c.height = size;
+        const cx = c.getContext('2d');
+        const segments = 36;
+        const ox = size / 2, oy = size / 2;
+        const baseR = size * 0.44;
+        const rand = (i) => {
+            const x = Math.sin((seed * 17 + i) * 12.9898) * 43758.5453;
+            return x - Math.floor(x);
+        };
+        cx.fillStyle = '#fff';
+        cx.beginPath();
+        for (let i = 0; i <= segments; i++) {
+            const a = (i / segments) * Math.PI * 2;
+            const r = baseR
+                + (rand(i) - 0.5) * size * 0.10
+                + (rand(i * 3 + 1) - 0.5) * size * 0.035;
+            const px = ox + Math.cos(a) * r;
+            const py = oy + Math.sin(a) * r;
+            if (i === 0) cx.moveTo(px, py); else cx.lineTo(px, py);
+        }
+        cx.closePath();
+        cx.fill();
+        return c;
+    },
+
+    getVariantTile(chapter, type, x, y) {
+        const ch = chapter + 1;
+        const variants = type === 'path' ? ['a', 'b', 'c'] : ['a', 'b'];
+        const hash = ((x * 73856093) ^ (y * 19349663)) >>> 0;
+        const v = variants[hash % variants.length];
+        const img = this.images.tiles[`ch${ch}_${type}_${v}`];
+        return this._isReady(img) ? img : null;
+    },
+
+    getEdgeMaskFor(x, y) {
+        const idx = ((x * 7 + y * 13) % 6 + 6) % 6;
+        return this._getEdgeMask(idx);
+    },
+
+    _isReady(img) {
+        return img && img.complete && img.naturalWidth > 0;
+    },
+
+    drawPaperOverlay(ctx, w, h) {
+        const img = this.images.paperOverlay;
+        if (!this._isReady(img)) return;
+        ctx.save();
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.globalAlpha = 0.35;
+        const pattern = ctx.createPattern(img, 'repeat');
+        if (pattern) {
+            ctx.fillStyle = pattern;
+            ctx.fillRect(0, 0, w, h);
+        } else {
+            ctx.drawImage(img, 0, 0, w, h);
+        }
+        ctx.restore();
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.globalAlpha = 0.15;
+        const pattern2 = ctx.createPattern(img, 'repeat');
+        if (pattern2) {
+            ctx.fillStyle = pattern2;
+            ctx.fillRect(0, 0, w, h);
+        }
+        ctx.restore();
+    },
+
+    drawGridCrease(ctx, x, y, w, h) {
+        const img = this.images.paperCrease;
+        if (!this._isReady(img)) return;
+        ctx.save();
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.globalAlpha = 0.4;
+        ctx.drawImage(img, x, y, w, h);
+        ctx.restore();
     },
 
     generateChapterTextures(chapter) {
         if (this.currentChapter === chapter) return;
         this.currentChapter = chapter;
-        const TS = Grid.TILE_SIZE;
         this.textures = {
-            path: this._genTile(TS, chapter, 'path'),
-            wall: this._genTile(TS, chapter, 'wall'),
-            back: this._genTile(TS, chapter, 'back')
+            path: this._genTile(240, chapter, 'path'),
+            wall: this._genTile(240, chapter, 'wall'),
+            back: this._genTile(240, chapter, 'back')
         };
+        this._tileOffsets = {};
+    },
+
+    _getTileOffset(x, y) {
+        const key = `${x},${y}`;
+        if (!this._tileOffsets[key]) {
+            const seed = x * 7919 + y * 6271;
+            this._tileOffsets[key] = {
+                ox: (seed % 160),
+                oy: ((seed * 31) % 160)
+            };
+        }
+        return this._tileOffsets[key];
     },
 
     _genTile(size, chapter, type) {
         const c = document.createElement('canvas');
         c.width = size; c.height = size;
         const ctx = c.getContext('2d');
-        const themes = this._getTheme(chapter);
-        const t = themes[type];
+        const theme = this._getTheme(chapter);
+        const t = theme[type];
 
         ctx.fillStyle = t.base;
         ctx.fillRect(0, 0, size, size);
 
-        const grad = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size*0.7);
-        grad.addColorStop(0, 'rgba(255,255,255,0.03)');
-        grad.addColorStop(1, 'rgba(0,0,0,0.08)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, size, size);
-
-        for (let i = 0; i < 40; i++) {
-            ctx.fillStyle = Math.random() > 0.5
-                ? `rgba(255,255,255,${Math.random()*0.06})`
-                : `rgba(0,0,0,${Math.random()*0.05})`;
-            ctx.fillRect(Math.random()*size, Math.random()*size, Math.random()*3+1, Math.random()*3+1);
+        for (let i = 0; i < 120; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const w = 1 + Math.random() * 4;
+            const h = 0.5 + Math.random() * 1.5;
+            const angle = Math.random() * Math.PI;
+            const bright = Math.random() > 0.5;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.fillStyle = bright
+                ? `rgba(255,255,255,${0.02 + Math.random() * 0.04})`
+                : `rgba(0,0,0,${0.02 + Math.random() * 0.03})`;
+            ctx.fillRect(-w/2, -h/2, w, h);
+            ctx.restore();
         }
 
-        this._drawFeatureLines(ctx, size, chapter, type);
+        for (let i = 0; i < 3; i++) {
+            const y = Math.random() * size;
+            ctx.strokeStyle = `rgba(255,255,255,${0.015 + Math.random() * 0.02})`;
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            for (let x = 0; x <= size; x += 4) {
+                const fy = y + Math.sin(x * 0.2 + i) * 2 + (Math.random() - 0.5);
+                x === 0 ? ctx.moveTo(x, fy) : ctx.lineTo(x, fy);
+            }
+            ctx.stroke();
+        }
 
-        ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(1, 1, size-2, size-2);
+        if (type !== 'wall') {
+            const edgeGrad = ctx.createLinearGradient(0, 0, 0, size);
+            edgeGrad.addColorStop(0, 'rgba(255,255,255,0.04)');
+            edgeGrad.addColorStop(0.3, 'rgba(255,255,255,0)');
+            edgeGrad.addColorStop(0.7, 'rgba(0,0,0,0)');
+            edgeGrad.addColorStop(1, 'rgba(0,0,0,0.06)');
+            ctx.fillStyle = edgeGrad;
+            ctx.fillRect(0, 0, size, size);
+        }
 
         return c;
     },
 
     _getTheme(chapter) {
         const themes = [
-            { path: {base:'#8fbc6b'}, wall: {base:'#3a5a2a'}, back: {base:'#7a5a8a'} },
-            { path: {base:'#c4a882'}, wall: {base:'#5a3a2a'}, back: {base:'#8a6a7a'} },
-            { path: {base:'#9a7a5a'}, wall: {base:'#3a2a2a'}, back: {base:'#8a5a6a'} },
-            { path: {base:'#6a9aaa'}, wall: {base:'#2a3a4a'}, back: {base:'#6a5a8a'} },
-            { path: {base:'#5a7a5a'}, wall: {base:'#1a2a2a'}, back: {base:'#5a4a6a'} },
-            { path: {base:'#6a5a4a'}, wall: {base:'#1a1a2a'}, back: {base:'#5a3a5a'} }
+            { path: {base:'#e6d4ac'}, wall: {base:'#5c4a35'}, back: {base:'#c4a8c0'} },
+            { path: {base:'#dcb88c'}, wall: {base:'#4c3520'}, back: {base:'#b89aaa'} },
+            { path: {base:'#c89870'}, wall: {base:'#3a2115'}, back: {base:'#a87a90'} },
+            { path: {base:'#9cb8c4'}, wall: {base:'#1f3040'}, back: {base:'#8a80a8'} },
+            { path: {base:'#8aa085'}, wall: {base:'#1a2418'}, back: {base:'#706888'} },
+            { path: {base:'#b89878'}, wall: {base:'#1f1825'}, back: {base:'#8a6e88'} }
         ];
         return themes[chapter] || themes[0];
     },
