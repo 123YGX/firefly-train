@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A Paper Trail-inspired paper-folding puzzle game built with pure HTML5 Canvas + vanilla JavaScript. No build tools, no frameworks. Open `index.html` directly in a browser to play.
 
-The game tells the story "萤火与列车" (Firefly and Train) across 6 chapters with 13 total levels. Players fold a virtual sheet of paper along grid lines to reveal hidden paths on the back side, connecting start to end.
+The game tells the story "萤火与列车" (Firefly and Train) across 6 chapters with 18 total levels. Players fold a virtual sheet of paper along grid lines to reveal hidden paths on the back side, connecting start to end.
 
 ## Running
 

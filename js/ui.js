@@ -142,11 +142,24 @@ const UI = {
     },
 
     showScreen(name) {
-        Object.values(this.screens).forEach(s => s.classList.remove('active'));
-        if (this.screens[name]) {
-            this.screens[name].classList.add('active');
+        // 淡出当前界面
+        const currentScreen = Object.values(this.screens).find(s => s.classList.contains('active'));
+        if (currentScreen) {
+            currentScreen.style.opacity = '0';
+            currentScreen.style.transform = 'scale(0.95)';
         }
-        this.currentScreen = name;
+
+        setTimeout(() => {
+            Object.values(this.screens).forEach(s => s.classList.remove('active'));
+            if (this.screens[name]) {
+                this.screens[name].classList.add('active');
+                // 强制重排以触发过渡
+                this.screens[name].offsetHeight;
+                this.screens[name].style.opacity = '1';
+                this.screens[name].style.transform = 'scale(1)';
+            }
+            this.currentScreen = name;
+        }, currentScreen ? 200 : 0);
     },
 
     showChapterSelect() {

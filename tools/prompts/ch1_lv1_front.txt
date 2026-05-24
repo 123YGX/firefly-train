@@ -1,0 +1,14 @@
+A flat top-down picture book illustration of a wooden student desk, viewed straight from above as if looking down at a tabletop. Wide horizontal composition, 16:9 aspect ratio.
+
+The desk surface fills the entire frame, a warm honey-brown wood with soft visible grain. Scattered across the desk:
+- An open textbook on the upper-left corner, with handwritten Chinese notes and red ink corrections
+- A returned exam paper at the upper-right, showing a mediocre score circled in red
+- A wooden pencil case open in the lower-left, with pencils and erasers spilling out
+- A small brass desk lamp casting a warm yellow pool of light from the upper-right corner
+- A folded train ticket peeking out from under the textbook, hinting at a journey
+- A few crumpled paper balls
+- A small ceramic mug of tea in the lower-right
+
+Crucially: the CENTRAL portion of the desk (roughly the middle 60% horizontally and middle 70% vertically) must be CLEAN and LARGELY EMPTY — just the warm wood surface with maybe a faint pencil sketch line or a single small object — so a game UI grid can sit on top without visual conflict.
+
+Art style: soft watercolor washes with delicate ink line work, gentle Chinese picture book illustration aesthetic, warm cream and amber palette, soft diffuse lighting, slightly textured paper feel. Mood: quiet late-afternoon study session, contemplative, warm and intimate. No text labels visible, no human figures.

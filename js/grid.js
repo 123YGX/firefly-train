@@ -64,6 +64,11 @@ const Grid = {
         this.currentFront = level.front.map(row => [...row]);
         this.currentBack = level.back.map(row => [...row]);
         this.displayGrid = this.currentFront.map(row => [...row]);
+        this.bgImageFront = level.bgImageFront || null;
+        this.bgImageBack = level.bgImageBack || null;
+        if (typeof Effects !== 'undefined' && Effects.loadLevelImages) {
+            Effects.loadLevelImages(level);
+        }
         this.calculateOffset();
     },
 
@@ -86,14 +91,68 @@ const Grid = {
         const gridH = this.gridHeight * TS;
         const pad = 16;
 
-        ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.4)';
-        ctx.shadowBlur = 24;
-        ctx.shadowOffsetY = 6;
-        ctx.fillStyle = 'rgba(245,235,215,0.92)';
-        this._roundRect(ctx, this.offsetX - pad, this.offsetY - pad, gridW + pad*2, gridH + pad*2, 8);
-        ctx.fill();
-        ctx.restore();
+        const bgFrontImg = this.bgImageFront ? Effects.getLevelImage(this.bgImageFront) : null;
+
+        let foldClipped = false;
+        if (typeof Fold !== 'undefined' && Fold.animating && Fold.animEdge) {
+            const e = Fold.animEdge;
+            const s = Fold.animSide;
+            const margin = 40;
+            let cx, cy, cw, ch;
+            if (e.type === 'vertical') {
+                if (s === 'left') {
+                    cx = this.offsetX + e.index * TS;
+                    cy = this.offsetY - margin;
+                    cw = (this.gridWidth - e.index) * TS + margin;
+                    ch = gridH + margin * 2;
+                } else {
+                    cx = this.offsetX - margin;
+                    cy = this.offsetY - margin;
+                    cw = e.index * TS + margin;
+                    ch = gridH + margin * 2;
+                }
+            } else {
+                if (s === 'top') {
+                    cx = this.offsetX - margin;
+                    cy = this.offsetY + e.index * TS;
+                    cw = gridW + margin * 2;
+                    ch = (this.gridHeight - e.index) * TS + margin;
+                } else {
+                    cx = this.offsetX - margin;
+                    cy = this.offsetY - margin;
+                    cw = gridW + margin * 2;
+                    ch = e.index * TS + margin;
+                }
+            }
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(cx, cy, cw, ch);
+            ctx.clip();
+            foldClipped = true;
+        }
+
+        if (!bgFrontImg) {
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.4)';
+            ctx.shadowBlur = 24;
+            ctx.shadowOffsetY = 6;
+            ctx.fillStyle = 'rgba(245,235,215,0.92)';
+            this._roundRect(ctx, this.offsetX - pad, this.offsetY - pad, gridW + pad*2, gridH + pad*2, 8);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        if (bgFrontImg) {
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.4)';
+            ctx.shadowBlur = 24;
+            ctx.shadowOffsetY = 6;
+            ctx.beginPath();
+            this._roundRect(ctx, this.offsetX, this.offsetY, gridW, gridH, 4);
+            ctx.clip();
+            ctx.drawImage(bgFrontImg, this.offsetX, this.offsetY, gridW, gridH);
+            ctx.restore();
+        }
 
         for (let y = 0; y < this.gridHeight; y++) {
             for (let x = 0; x < this.gridWidth; x++) {
@@ -103,61 +162,80 @@ const Grid = {
                 const tw = TS - gap * 2;
                 const th = TS - gap * 2;
 
-                const isWallTile = (tile === this.WALL || tile === this.EMPTY);
-                const isPathTile = !isWallTile;
-                const variantImg = Effects.getVariantTile(
-                    Levels.currentChapter,
-                    isWallTile ? 'wall' : 'path',
-                    x, y
-                );
+                if (!bgFrontImg) {
+                    const isWallTile = (tile === this.WALL || tile === this.EMPTY);
+                    const isPathTile = !isWallTile;
+                    const variantImg = Effects.getVariantTile(
+                        Levels.currentChapter,
+                        isWallTile ? 'wall' : 'path',
+                        x, y
+                    );
 
-                if (variantImg) {
-                    try {
-                        const buf = this._getTileBuffer(TS);
-                        const bx = buf.getContext('2d');
-                        bx.clearRect(0, 0, TS, TS);
-                        bx.drawImage(variantImg, 0, 0, TS, TS);
-                        if (isPathTile) {
-                            const grad = bx.createRadialGradient(TS/2, TS/2, TS*0.2, TS/2, TS/2, TS*0.7);
-                            grad.addColorStop(0, 'rgba(255,235,200,0.18)');
-                            grad.addColorStop(1, 'rgba(255,235,200,0)');
-                            bx.fillStyle = grad;
-                            bx.fillRect(0, 0, TS, TS);
+                    if (variantImg) {
+                        try {
+                            const buf = this._getTileBuffer(TS);
+                            const bx = buf.getContext('2d');
+                            bx.clearRect(0, 0, TS, TS);
+                            bx.drawImage(variantImg, 0, 0, TS, TS);
+                            if (isPathTile) {
+                                const grad = bx.createRadialGradient(TS/2, TS/2, TS*0.2, TS/2, TS/2, TS*0.7);
+                                grad.addColorStop(0, 'rgba(255,235,200,0.18)');
+                                grad.addColorStop(1, 'rgba(255,235,200,0)');
+                                bx.fillStyle = grad;
+                                bx.fillRect(0, 0, TS, TS);
+                            }
+                            const mask = Effects.getEdgeMaskFor(x, y);
+                            if (mask) {
+                                bx.globalCompositeOperation = 'destination-in';
+                                bx.drawImage(mask, 0, 0, TS, TS);
+                                bx.globalCompositeOperation = 'source-over';
+                            }
+                            ctx.drawImage(buf, this.offsetX + x * TS, this.offsetY + y * TS);
+                        } catch (e) {
+                            ctx.drawImage(variantImg, this.offsetX + x * TS, this.offsetY + y * TS, TS, TS);
                         }
-                        const mask = Effects.getEdgeMaskFor(x, y);
-                        if (mask) {
-                            bx.globalCompositeOperation = 'destination-in';
-                            bx.drawImage(mask, 0, 0, TS, TS);
-                            bx.globalCompositeOperation = 'source-over';
+                    } else {
+                        ctx.save();
+                        ctx.beginPath();
+                        this._roundRect(ctx, px, py, tw, th, radius);
+                        ctx.clip();
+
+                        const texImg = Effects.getTileCanvas(tile);
+                        if (texImg) {
+                            const off = Effects._getTileOffset(x, y);
+                            ctx.drawImage(texImg, off.ox, off.oy, tw, th, px, py, tw, th);
+                        } else {
+                            ctx.fillStyle = this.colors.front[tile] || '#1e2a3a';
+                            ctx.fillRect(px, py, tw, th);
                         }
-                        ctx.drawImage(buf, this.offsetX + x * TS, this.offsetY + y * TS);
-                    } catch (e) {
-                        ctx.drawImage(variantImg, this.offsetX + x * TS, this.offsetY + y * TS, TS, TS);
+
+                        if (tile !== this.WALL && tile !== this.EMPTY) {
+                            const glow = ctx.createRadialGradient(px + tw/2, py + th/2, tw*0.2, px + tw/2, py + th/2, tw*0.7);
+                            glow.addColorStop(0, 'rgba(255,235,200,0.12)');
+                            glow.addColorStop(1, 'rgba(255,235,200,0)');
+                            ctx.fillStyle = glow;
+                            ctx.fillRect(px, py, tw, th);
+                        }
+
+                        ctx.restore();
                     }
+                } else if (tile === this.WALL || tile === this.EMPTY) {
+                    const paperTex = this._getPaperTile();
+                    ctx.drawImage(paperTex, this.offsetX + x * TS, this.offsetY + y * TS);
                 } else {
-                    ctx.save();
-                    ctx.beginPath();
-                    this._roundRect(ctx, px, py, tw, th, radius);
-                    ctx.clip();
-
                     const texImg = Effects.getTileCanvas(tile);
                     if (texImg) {
+                        ctx.save();
+                        ctx.globalAlpha = 0.85;
                         const off = Effects._getTileOffset(x, y);
                         ctx.drawImage(texImg, off.ox, off.oy, tw, th, px, py, tw, th);
-                    } else {
-                        ctx.fillStyle = this.colors.front[tile] || '#1e2a3a';
-                        ctx.fillRect(px, py, tw, th);
+                        ctx.restore();
                     }
-
-                    if (tile !== this.WALL && tile !== this.EMPTY) {
-                        const glow = ctx.createRadialGradient(px + tw/2, py + th/2, tw*0.2, px + tw/2, py + th/2, tw*0.7);
-                        glow.addColorStop(0, 'rgba(255,235,200,0.12)');
-                        glow.addColorStop(1, 'rgba(255,235,200,0)');
-                        ctx.fillStyle = glow;
-                        ctx.fillRect(px, py, tw, th);
-                    }
-
-                    ctx.restore();
+                    const glow = ctx.createRadialGradient(px + tw/2, py + th/2, tw*0.15, px + tw/2, py + th/2, tw*0.6);
+                    glow.addColorStop(0, 'rgba(255,220,150,0.22)');
+                    glow.addColorStop(1, 'rgba(255,220,150,0)');
+                    ctx.fillStyle = glow;
+                    ctx.fillRect(this.offsetX + x * TS, this.offsetY + y * TS, TS, TS);
                 }
 
                 const cx = px + tw / 2, cy = py + th / 2;
@@ -220,6 +298,10 @@ const Grid = {
                 }
             }
         }
+
+        if (foldClipped) {
+            ctx.restore();
+        }
     },
 
     _roundRect(ctx, x, y, w, h, r) {
@@ -242,6 +324,31 @@ const Grid = {
             this._tileBuffer.height = size;
         }
         return this._tileBuffer;
+    },
+
+    _paperTileCache: null,
+    _getPaperTile() {
+        const TS = this.TILE_SIZE;
+        if (this._paperTileCache && this._paperTileCache.width === TS) {
+            return this._paperTileCache;
+        }
+        const cv = document.createElement('canvas');
+        cv.width = TS;
+        cv.height = TS;
+        const c = cv.getContext('2d');
+        c.fillStyle = '#f1e5cb';
+        c.fillRect(0, 0, TS, TS);
+        const img = c.getImageData(0, 0, TS, TS);
+        const d = img.data;
+        for (let i = 0; i < d.length; i += 4) {
+            const n = (Math.random() - 0.5) * 10;
+            d[i]   = Math.max(0, Math.min(255, d[i]   + n));
+            d[i+1] = Math.max(0, Math.min(255, d[i+1] + n));
+            d[i+2] = Math.max(0, Math.min(255, d[i+2] + n));
+        }
+        c.putImageData(img, 0, 0);
+        this._paperTileCache = cv;
+        return cv;
     },
 
     _drawWarmHalo(ctx, cx, cy, color) {

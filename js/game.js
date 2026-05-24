@@ -23,6 +23,13 @@ const Game = {
     bindEvents() {
         this.canvas.addEventListener('mousemove', (e) => {
             if (this.state !== 'playing') return;
+            if (Player.moving || Fold.animating) {
+                Fold.hoveredEdge = null;
+                Fold.hoveredSide = null;
+                Fold._previewCache = null;
+                this.canvas.style.cursor = 'default';
+                return;
+            }
             const rect = this.canvas.getBoundingClientRect();
             const scaleX = this.canvas.width / rect.width;
             const scaleY = this.canvas.height / rect.height;
@@ -345,10 +352,6 @@ const Game = {
             Player.draw(this.ctx);
             Particles.update();
             Particles.draw(this.ctx);
-
-            if (Effects._isReady(Effects.images.paperFrame)) {
-                this.ctx.drawImage(Effects.images.paperFrame, 0, 0, 1400, 900);
-            }
 
             if (Fold.animating) {
                 const done = Fold.updateAnimation();

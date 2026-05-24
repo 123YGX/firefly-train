@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>关卡 Sketch 导出工具 - 萤火与列车</title>
+<style>
+body { font-family: 'Microsoft YaHei', sans-serif; background: #1a1a2e; color: #eee; padding: 24px; }
+h1 { color: #ffb74d; margin-bottom: 6px; }
+.hint { color: #aaa; font-size: 13px; margin-bottom: 18px; line-height: 1.6; }
+.row { display: flex; gap: 20px; margin-bottom: 30px; align-items: flex-start; flex-wrap: wrap; }
+.card { background: #2a2a44; padding: 16px; border-radius: 8px; min-width: 260px; }
+.card h2 { color: #ffd180; font-size: 16px; margin: 0 0 8px 0; }
+.card p { margin: 4px 0; font-size: 13px; color: #ccc; }
+canvas { display: block; background: #fff; border: 2px solid #555; image-rendering: pixelated; margin-top: 8px; }
+button { background: #ff7043; color: white; border: none; padding: 10px 18px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-top: 10px; }
+button:hover { background: #ff8a65; }
+.legend { font-size: 12px; color: #bbb; margin-top: 12px; }
+.legend span { display: inline-block; padding: 2px 8px; margin-right: 6px; border-radius: 3px; color: #000; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>关卡 Sketch 导出工具</h1>
+<p class="hint">
+    用于给 AI 出图当 ControlNet / 参考图。<br>
+    Sketch 标明：<b>白色</b>=正面可见路径 / <b>浅蓝</b>=折叠后才出现的隐藏路径 / <b>黑色</b>=墙 / <b>绿 S</b>=起点 / <b>橙 E</b>=终点。<br>
+    AI 作画时：白色与浅蓝区域应画成"可走"的纹理（木桥/石板/小径），黑色区域画成"不可走"的环境（水/岩石/植被），起终点位置要有视觉焦点。
+</p>
+
+<div class="row" id="sketches"></div>
+
+<div class="legend">
+    图例：
+    <span style="background:#fff">PATH 路径</span>
+    <span style="background:#a8d8ff">BACK 折叠路径</span>
+    <span style="background:#000;color:#fff">WALL 墙</span>
+    <span style="background:#4caf50;color:#fff">S 起点</span>
+    <span style="background:#ff7043;color:#fff">E 终点</span>
+    <span style="background:#c8ff32">收集物</span>
+    <span style="background:#00bcd4;color:#fff">传送A</span>
+    <span style="background:#ff9800;color:#fff">传送B</span>
+</div>
+
+<script>
+const LEVELS = [
+    // ch1 lv1
+    {
+        name: 'ch1_lv1',
+        width: 6, height: 6,
+        front: [[2,2,2,2,2,2],[2,2,2,2,2,2],[2,2,2,2,2,2],[2,3,2,2,2,4],[2,2,2,2,2,2],[2,2,2,2,2,2]],
+        back:  [[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,1,1,1,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0]],
+        desc: '第 1 章第 1 关：横断桥，起点(左)与终点(右)中间有 3 格断口，需向下折叠使上方 3 个隐藏木板补齐桥面。'
+    }
+];
+
+const TS = 80; // 与游戏 TILE_SIZE 一致
+const colorMap = {
+    0: '#ffffff',           // EMPTY (back layer 空) 当 path 处理
+    1: '#ffffff',           // PATH
+    2: '#000000',           // WALL
+    3: '#4caf50',           // START
+    4: '#ff7043',           // END
+    5: '#888888',           // DECO
+    6: '#c8ff32',           // COLLECTIBLE
+    7: '#00bcd4',           // TELEPORT_A
+    8: '#ff9800',           // TELEPORT_B
+    9: '#9e9e9e',           // FRAGILE
+    10: '#bbbbbb', 11: '#bbbbbb', 12: '#bbbbbb', 13: '#bbbbbb' // ONEWAY
+};
+const labelMap = { 3: 'S', 4: 'E', 6: '★', 7: 'A', 8: 'B', 9: '╳', 10: '→', 11: '↓', 12: '←', 13: '↑' };
+
+function renderSketch(level) {
+    const W = level.width * TS;
+    const H = level.height * TS;
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    const ctx = c.getContext('2d');
+
+    // 先画整张为墙（黑），再覆盖路径
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, W, H);
+
+    // 画 back 层（浅蓝表示折叠后才出现的隐藏路径）
+    for (let y = 0; y < level.height; y++) {
+        for (let x = 0; x < level.width; x++) {
+            const bt = level.back[y][x];
+            if (bt && bt !== 2) { // 非空非墙
+                ctx.fillStyle = bt === 1 ? '#a8d8ff' : (colorMap[bt] || '#a8d8ff');
+                ctx.fillRect(x * TS, y * TS, TS, TS);
+            }
+        }
+    }
+
+    // 画 front 层（覆盖在 back 之上）
+    for (let y = 0; y < level.height; y++) {
+        for (let x = 0; x < level.width; x++) {
+            const ft = level.front[y][x];
+            if (ft !== 2 && ft !== 0) { // 非墙非空
+                ctx.fillStyle = colorMap[ft] || '#ffffff';
+                ctx.fillRect(x * TS, y * TS, TS, TS);
+            } else if (ft === 1) {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(x * TS, y * TS, TS, TS);
+            }
+        }
+    }
+
+    // 网格线（极淡）
+    ctx.strokeStyle = 'rgba(128,128,128,0.25)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= level.width; i++) {
+        ctx.beginPath(); ctx.moveTo(i * TS, 0); ctx.lineTo(i * TS, H); ctx.stroke();
+    }
+    for (let i = 0; i <= level.height; i++) {
+        ctx.beginPath(); ctx.moveTo(0, i * TS); ctx.lineTo(W, i * TS); ctx.stroke();
+    }
+
+    // 起点/终点/特殊位置标签
+    ctx.font = 'bold ' + Math.floor(TS * 0.55) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let y = 0; y < level.height; y++) {
+        for (let x = 0; x < level.width; x++) {
+            const ft = level.front[y][x];
+            const label = labelMap[ft];
+            if (label) {
+                ctx.fillStyle = (ft === 3 || ft === 4) ? '#ffffff' : '#000000';
+                ctx.fillText(label, x * TS + TS/2, y * TS + TS/2);
+            }
+        }
+    }
+
+    return c;
+}
+
+function download(canvas, filename) {
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+}
+
+const container = document.getElementById('sketches');
+for (const level of LEVELS) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+        <h2>${level.name}</h2>
+        <p>${level.desc}</p>
+        <p style="color:#999">尺寸: ${level.width*TS} × ${level.height*TS} px</p>
+    `;
+    const canvas = renderSketch(level);
+    card.appendChild(canvas);
+
+    const btn = document.createElement('button');
+    btn.textContent = `下载 ${level.name}_sketch.png`;
+    btn.onclick = () => download(canvas, `${level.name}_sketch.png`);
+    card.appendChild(btn);
+
+    const btn2 = document.createElement('button');
+    btn2.textContent = `下载 1024×1024 高清版`;
+    btn2.style.marginLeft = '8px';
+    btn2.style.background = '#7e57c2';
+    btn2.onclick = () => {
+        const hires = document.createElement('canvas');
+        hires.width = 1024;
+        hires.height = 1024;
+        const hctx = hires.getContext('2d');
+        hctx.imageSmoothingEnabled = false;
+        hctx.fillStyle = '#000';
+        hctx.fillRect(0, 0, 1024, 1024);
+        const scaleW = 1024 / canvas.width;
+        const scaleH = 1024 / canvas.height;
+        const scale = Math.min(scaleW, scaleH);
+        const dw = canvas.width * scale;
+        const dh = canvas.height * scale;
+        const dx = (1024 - dw) / 2;
+        const dy = (1024 - dh) / 2;
+        hctx.drawImage(canvas, dx, dy, dw, dh);
+        download(hires, `${level.name}_sketch_1024.png`);
+    };
+    card.appendChild(btn2);
+
+    container.appendChild(card);
+}
+</script>
+
+</body>
+</html>

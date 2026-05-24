@@ -6,12 +6,21 @@ const Fold = {
     hoveredSide: null,
     animating: false,
     animProgress: 0,
-    animDuration: 45,
+    animDuration: 60,
     animEdge: null,
     animSide: null,
     pendingDisplay: null,
+    pendingBack: null,
+    pendingW: 0,
+    pendingH: 0,
+    pendingOX: 0,
+    pendingOY: 0,
+    pendingPlayerX: 0,
+    pendingPlayerY: 0,
     creaseHistory: [],
     _previewCache: null,
+    _snapshotBefore: null,
+    _snapshotAfter: null,
 
     reset() {
         this.history = [];
@@ -22,8 +31,17 @@ const Fold = {
         this.animating = false;
         this.animProgress = 0;
         this.pendingDisplay = null;
+        this.pendingBack = null;
+        this.pendingW = 0;
+        this.pendingH = 0;
+        this.pendingOX = 0;
+        this.pendingOY = 0;
+        this.pendingPlayerX = 0;
+        this.pendingPlayerY = 0;
         this.creaseHistory = [];
         this._previewCache = null;
+        this._snapshotBefore = null;
+        this._snapshotAfter = null;
     },
 
     detectEdge(mx, my) {
@@ -65,84 +83,277 @@ const Fold = {
     executeFold(edge, side) {
         if (this.animating) return false;
 
-        const prevDisplay = Grid.displayGrid.map(r => [...r]);
-        const prevFront = Grid.currentFront.map(r => [...r]);
-        this.history.push({ display: prevDisplay, front: prevFront });
+        const oldW = Grid.gridWidth;
+        const oldH = Grid.gridHeight;
+        const oldDisplay = Grid.displayGrid.map(r => [...r]);
+        const oldFront = Grid.currentFront.map(r => [...r]);
+        const oldBack = Grid.currentBack.map(r => [...r]);
+        const oldOX = Grid.offsetX;
+        const oldOY = Grid.offsetY;
+        const oldCreases = this.creaseHistory.slice();
+        const oldPlayerX = Player.x;
+        const oldPlayerY = Player.y;
 
-        const newDisplay = Grid.displayGrid.map(r => [...r]);
+        this.history.push({
+            display: oldDisplay,
+            front: oldFront,
+            back: oldBack,
+            gridWidth: oldW,
+            gridHeight: oldH,
+            offsetX: oldOX,
+            offsetY: oldOY,
+            creases: oldCreases,
+            playerX: oldPlayerX,
+            playerY: oldPlayerY
+        });
+
+        let newW, newH, newDisplay, newBack;
+        let newPlayerX = oldPlayerX;
+        let newPlayerY = oldPlayerY;
+        let newOX = oldOX;
+        let newOY = oldOY;
 
         if (edge.type === 'vertical') {
             const col = edge.index;
             if (side === 'left') {
-                for (let y = 0; y < Grid.gridHeight; y++) {
-                    for (let x = 0; x < col; x++) {
-                        const mx = 2 * col - x - 1;
-                        if (mx < Grid.gridWidth) {
-                            let bt = Grid.currentBack[y][x];
-                            if (bt !== Grid.EMPTY) newDisplay[y][mx] = this.mirrorTileH(bt);
+                newW = oldW - col;
+                newH = oldH;
+                newOX = oldOX + col * Grid.TILE_SIZE;
+                newDisplay = [];
+                newBack = [];
+                for (let y = 0; y < newH; y++) {
+                    newDisplay[y] = [];
+                    newBack[y] = [];
+                    for (let nx = 0; nx < newW; nx++) {
+                        const ox = nx + col;
+                        newDisplay[y][nx] = oldDisplay[y][ox];
+                        newBack[y][nx] = oldBack[y][ox];
+                    }
+                    for (let lx = 0; lx < col; lx++) {
+                        const nx = col - lx - 1;
+                        if (nx >= 0 && nx < newW) {
+                            const bt = oldBack[y][lx];
+                            if (bt !== Grid.EMPTY) newDisplay[y][nx] = this.mirrorTileH(bt);
                         }
                     }
-                    for (let x = 0; x < col; x++) newDisplay[y][x] = Grid.WALL;
                 }
+                newPlayerX = oldPlayerX < col ? (col - oldPlayerX - 1) : (oldPlayerX - col);
             } else {
-                for (let y = 0; y < Grid.gridHeight; y++) {
-                    for (let x = col; x < Grid.gridWidth; x++) {
-                        const mx = col - (x - col) - 1;
-                        if (mx >= 0) {
-                            let bt = Grid.currentBack[y][x];
-                            if (bt !== Grid.EMPTY) newDisplay[y][mx] = this.mirrorTileH(bt);
+                newW = col;
+                newH = oldH;
+                newDisplay = [];
+                newBack = [];
+                for (let y = 0; y < newH; y++) {
+                    newDisplay[y] = [];
+                    newBack[y] = [];
+                    for (let nx = 0; nx < newW; nx++) {
+                        newDisplay[y][nx] = oldDisplay[y][nx];
+                        newBack[y][nx] = oldBack[y][nx];
+                    }
+                    for (let rx = col; rx < oldW; rx++) {
+                        const nx = 2 * col - rx - 1;
+                        if (nx >= 0 && nx < newW) {
+                            const bt = oldBack[y][rx];
+                            if (bt !== Grid.EMPTY) newDisplay[y][nx] = this.mirrorTileH(bt);
                         }
                     }
-                    for (let x = col; x < Grid.gridWidth; x++) newDisplay[y][x] = Grid.WALL;
                 }
+                newPlayerX = oldPlayerX >= col ? (2 * col - oldPlayerX - 1) : oldPlayerX;
             }
         } else {
             const row = edge.index;
             if (side === 'top') {
-                for (let y = 0; y < row; y++) {
-                    const my = 2 * row - y - 1;
-                    for (let x = 0; x < Grid.gridWidth; x++) {
-                        if (my < Grid.gridHeight) {
-                            let bt = Grid.currentBack[y][x];
-                            if (bt !== Grid.EMPTY) newDisplay[my][x] = this.mirrorTileV(bt);
+                newW = oldW;
+                newH = oldH - row;
+                newOY = oldOY + row * Grid.TILE_SIZE;
+                newDisplay = [];
+                newBack = [];
+                for (let ny = 0; ny < newH; ny++) {
+                    newDisplay[ny] = [];
+                    newBack[ny] = [];
+                    const oy = ny + row;
+                    for (let x = 0; x < newW; x++) {
+                        newDisplay[ny][x] = oldDisplay[oy][x];
+                        newBack[ny][x] = oldBack[oy][x];
+                    }
+                }
+                for (let ly = 0; ly < row; ly++) {
+                    const ny = row - ly - 1;
+                    if (ny >= 0 && ny < newH) {
+                        for (let x = 0; x < newW; x++) {
+                            const bt = oldBack[ly][x];
+                            if (bt !== Grid.EMPTY) newDisplay[ny][x] = this.mirrorTileV(bt);
                         }
                     }
                 }
-                for (let y = 0; y < row; y++)
-                    for (let x = 0; x < Grid.gridWidth; x++) newDisplay[y][x] = Grid.WALL;
+                newPlayerY = oldPlayerY < row ? (row - oldPlayerY - 1) : (oldPlayerY - row);
             } else {
-                for (let y = row; y < Grid.gridHeight; y++) {
-                    const my = row - (y - row) - 1;
-                    for (let x = 0; x < Grid.gridWidth; x++) {
-                        if (my >= 0) {
-                            let bt = Grid.currentBack[y][x];
-                            if (bt !== Grid.EMPTY) newDisplay[my][x] = this.mirrorTileV(bt);
+                newW = oldW;
+                newH = row;
+                newDisplay = [];
+                newBack = [];
+                for (let ny = 0; ny < newH; ny++) {
+                    newDisplay[ny] = [];
+                    newBack[ny] = [];
+                    for (let x = 0; x < newW; x++) {
+                        newDisplay[ny][x] = oldDisplay[ny][x];
+                        newBack[ny][x] = oldBack[ny][x];
+                    }
+                }
+                for (let ry = row; ry < oldH; ry++) {
+                    const ny = 2 * row - ry - 1;
+                    if (ny >= 0 && ny < newH) {
+                        for (let x = 0; x < newW; x++) {
+                            const bt = oldBack[ry][x];
+                            if (bt !== Grid.EMPTY) newDisplay[ny][x] = this.mirrorTileV(bt);
                         }
                     }
                 }
-                for (let y = row; y < Grid.gridHeight; y++)
-                    for (let x = 0; x < Grid.gridWidth; x++) newDisplay[y][x] = Grid.WALL;
+                newPlayerY = oldPlayerY >= row ? (2 * row - oldPlayerY - 1) : oldPlayerY;
             }
         }
 
+        this.creaseHistory = this._remapCreases(oldCreases, edge, side, oldW, oldH);
+
+        newPlayerX = Math.max(0, Math.min(newW - 1, newPlayerX));
+        newPlayerY = Math.max(0, Math.min(newH - 1, newPlayerY));
+
         this.pendingDisplay = newDisplay;
+        this.pendingBack = newBack;
+        this.pendingW = newW;
+        this.pendingH = newH;
+        this.pendingOX = newOX;
+        this.pendingOY = newOY;
+        this.pendingPlayerX = newPlayerX;
+        this.pendingPlayerY = newPlayerY;
+
         this.animEdge = edge;
         this.animSide = side;
         this.animating = true;
         this.animProgress = 0;
-        this.creaseHistory.push({ type: edge.type, index: edge.index });
+
+        this._snapshotBefore = this._captureGridSnapshot(oldDisplay, oldFront, oldW, oldH);
+
+        const savedBg = Grid.bgImageFront;
+        if (Grid.bgImageBack) Grid.bgImageFront = Grid.bgImageBack;
+        this._snapshotAfter = this._captureGridSnapshot(newDisplay, newDisplay, newW, newH);
+        Grid.bgImageFront = savedBg;
+
         Audio.playFold();
         return true;
+    },
+
+    _remapCreases(creases, edge, side, oldW, oldH) {
+        const out = [];
+        for (const c of creases) {
+            if (edge.type === 'vertical' && c.type === 'vertical') {
+                const col = edge.index;
+                if (side === 'left') {
+                    if (c.index > col) out.push({ type: 'vertical', index: c.index - col });
+                    else if (c.index < col) {
+                        const m = 2 * col - c.index;
+                        if (m > col && m < oldW) out.push({ type: 'vertical', index: m - col });
+                    }
+                } else {
+                    if (c.index < col) out.push({ type: 'vertical', index: c.index });
+                    else if (c.index > col) {
+                        const m = 2 * col - c.index;
+                        if (m > 0 && m < col) out.push({ type: 'vertical', index: m });
+                    }
+                }
+            } else if (edge.type === 'horizontal' && c.type === 'horizontal') {
+                const row = edge.index;
+                if (side === 'top') {
+                    if (c.index > row) out.push({ type: 'horizontal', index: c.index - row });
+                    else if (c.index < row) {
+                        const m = 2 * row - c.index;
+                        if (m > row && m < oldH) out.push({ type: 'horizontal', index: m - row });
+                    }
+                } else {
+                    if (c.index < row) out.push({ type: 'horizontal', index: c.index });
+                    else if (c.index > row) {
+                        const m = 2 * row - c.index;
+                        if (m > 0 && m < row) out.push({ type: 'horizontal', index: m });
+                    }
+                }
+            } else if (edge.type === 'vertical' && c.type === 'horizontal') {
+                const col = edge.index;
+                if (side === 'left') {
+                    out.push({ type: 'horizontal', index: c.index });
+                } else {
+                    out.push({ type: 'horizontal', index: c.index });
+                }
+            } else {
+                const row = edge.index;
+                if (side === 'top') {
+                    out.push({ type: 'vertical', index: c.index });
+                } else {
+                    out.push({ type: 'vertical', index: c.index });
+                }
+            }
+        }
+        return out;
+    },
+
+    _captureGridSnapshot(displayGrid, frontGrid, gw, gh) {
+        const TS = Grid.TILE_SIZE;
+        const w = gw * TS;
+        const h = gh * TS;
+        const cv = document.createElement('canvas');
+        cv.width = w;
+        cv.height = h;
+        const cx = cv.getContext('2d');
+
+        const savedDisplay = Grid.displayGrid;
+        const savedFront = Grid.currentFront;
+        const savedOX = Grid.offsetX;
+        const savedOY = Grid.offsetY;
+        const savedGW = Grid.gridWidth;
+        const savedGH = Grid.gridHeight;
+
+        Grid.displayGrid = displayGrid;
+        Grid.currentFront = frontGrid;
+        Grid.offsetX = 0;
+        Grid.offsetY = 0;
+        Grid.gridWidth = gw;
+        Grid.gridHeight = gh;
+
+        try {
+            Grid.draw(cx);
+        } catch (e) {
+            // ignore
+        }
+
+        Grid.displayGrid = savedDisplay;
+        Grid.currentFront = savedFront;
+        Grid.offsetX = savedOX;
+        Grid.offsetY = savedOY;
+        Grid.gridWidth = savedGW;
+        Grid.gridHeight = savedGH;
+
+        return cv;
     },
 
     updateAnimation() {
         if (!this.animating) return false;
         this.animProgress++;
         if (this.animProgress >= this.animDuration) {
+            Grid.gridWidth = this.pendingW;
+            Grid.gridHeight = this.pendingH;
             Grid.displayGrid = this.pendingDisplay;
             Grid.currentFront = this.pendingDisplay.map(r => [...r]);
+            Grid.currentBack = this.pendingBack;
+            Grid.offsetX = this.pendingOX;
+            Grid.offsetY = this.pendingOY;
+            Player.x = this.pendingPlayerX;
+            Player.y = this.pendingPlayerY;
+            Player.targetX = Player.x;
+            Player.targetY = Player.y;
+            Player.pixelX = Grid.offsetX + Player.x * Grid.TILE_SIZE + Grid.TILE_SIZE / 2;
+            Player.pixelY = Grid.offsetY + Player.y * Grid.TILE_SIZE + Grid.TILE_SIZE / 2;
             this.animating = false;
             this.pendingDisplay = null;
+            this.pendingBack = null;
             return true;
         }
         return false;
@@ -162,16 +373,25 @@ const Fold = {
         const cosA = Math.cos(angle);
         const isFront = angle < Math.PI / 2;
         const slices = 16;
+        const snapBefore = this._snapshotBefore;
+        const snapAfter = this._snapshotAfter;
 
         ctx.save();
 
         if (edge.type === 'vertical') {
-            const lineX = Grid.offsetX + edge.index * TS;
-            const foldWidth = side === 'left' ? edge.index * TS : (Grid.gridWidth - edge.index) * TS;
+            const lineXSnap = edge.index * TS;
+            const lineX = Grid.offsetX + lineXSnap;
+            const foldWidth = side === 'left' ? lineXSnap : (Grid.gridWidth * TS - lineXSnap);
             const gridTop = Grid.offsetY;
             const gridH = Grid.gridHeight * TS;
             const sliceW = foldWidth / slices;
             const dirSign = side === 'left' ? -1 : 1;
+
+            const foldedX = side === 'left' ? Grid.offsetX : lineX;
+            ctx.save();
+            ctx.fillStyle = `rgba(0,0,0,${t * 0.18})`;
+            ctx.fillRect(foldedX, gridTop, foldWidth, gridH);
+            ctx.restore();
 
             const dropShadowAlpha = sinA * 0.5;
             if (dropShadowAlpha > 0) {
@@ -186,40 +406,37 @@ const Fold = {
 
             for (let i = 0; i < slices; i++) {
                 const sliceProgress = (i + 0.5) / slices;
-                const archHeight = sinA * 25;
-                const yLift = -archHeight * Math.sin(sliceProgress * Math.PI);
                 const drawW = sliceW * Math.max(0.01, Math.abs(cosA));
-                const dx = lineX + dirSign * (sliceProgress * foldWidth * Math.abs(cosA));
-                const sliceX = dx - (dirSign === -1 ? drawW : 0);
+                const dx = lineX + dirSign * (sliceProgress * foldWidth * cosA);
+                const sliceX = dx - drawW / 2;
 
                 const lightFactor = isFront
-                    ? 1 - sinA * 0.25 * sliceProgress
-                    : 0.65 + cosA * cosA * 0.3;
+                    ? 1 - sinA * 0.15
+                    : 0.7 + cosA * cosA * 0.25;
 
                 ctx.save();
                 ctx.beginPath();
-                ctx.rect(sliceX, gridTop + yLift, drawW + 1, gridH);
+                ctx.rect(sliceX, gridTop, drawW + 1, gridH);
                 ctx.clip();
 
-                const tex = isFront ? Effects.getTileCanvas(Grid.PATH) : Effects.getBackTileCanvas();
-                if (tex) {
-                    const sliceImgX = side === 'left'
-                        ? (lineX - foldWidth) + sliceProgress * foldWidth - sliceW/2
-                        : lineX + sliceProgress * foldWidth - sliceW/2;
-                    if (isFront) {
-                        ctx.drawImage(tex, sliceX, gridTop + yLift, drawW + 1, gridH);
-                    } else {
-                        ctx.drawImage(tex, sliceX, gridTop + yLift, drawW + 1, gridH);
-                    }
+                let srcCanvas, srcCenterX;
+                if (isFront) {
+                    srcCanvas = snapBefore;
+                    srcCenterX = lineXSnap + dirSign * sliceProgress * foldWidth;
+                } else {
+                    srcCanvas = snapAfter;
+                    srcCenterX = side === 'left'
+                        ? (sliceProgress * foldWidth)
+                        : (lineXSnap - sliceProgress * foldWidth);
                 }
 
-                ctx.fillStyle = `rgba(0,0,0,${(1 - lightFactor) * 0.55})`;
-                ctx.fillRect(sliceX, gridTop + yLift, drawW + 1, gridH);
-
-                if (isFront && sliceProgress > 0.85) {
-                    ctx.fillStyle = `rgba(255,255,240,${sinA * 0.25})`;
-                    ctx.fillRect(sliceX, gridTop + yLift, drawW + 1, gridH);
+                if (srcCanvas) {
+                    const srcX = srcCenterX - sliceW / 2;
+                    ctx.drawImage(srcCanvas, srcX, 0, sliceW, gridH, sliceX, gridTop, drawW + 1, gridH);
                 }
+
+                ctx.fillStyle = `rgba(0,0,0,${(1 - lightFactor) * 0.5})`;
+                ctx.fillRect(sliceX, gridTop, drawW + 1, gridH);
 
                 ctx.restore();
             }
@@ -227,12 +444,19 @@ const Fold = {
             this._drawFoldCreaseLine(ctx, lineX, gridTop, lineX, gridTop + gridH, t);
 
         } else {
-            const lineY = Grid.offsetY + edge.index * TS;
-            const foldHeight = side === 'top' ? edge.index * TS : (Grid.gridHeight - edge.index) * TS;
+            const lineYSnap = edge.index * TS;
+            const lineY = Grid.offsetY + lineYSnap;
+            const foldHeight = side === 'top' ? lineYSnap : (Grid.gridHeight * TS - lineYSnap);
             const gridLeft = Grid.offsetX;
             const gridW = Grid.gridWidth * TS;
             const sliceH = foldHeight / slices;
             const dirSign = side === 'top' ? -1 : 1;
+
+            const foldedY = side === 'top' ? Grid.offsetY : lineY;
+            ctx.save();
+            ctx.fillStyle = `rgba(0,0,0,${t * 0.18})`;
+            ctx.fillRect(gridLeft, foldedY, gridW, foldHeight);
+            ctx.restore();
 
             const dropShadowAlpha = sinA * 0.5;
             if (dropShadowAlpha > 0) {
@@ -247,33 +471,37 @@ const Fold = {
 
             for (let i = 0; i < slices; i++) {
                 const sliceProgress = (i + 0.5) / slices;
-                const archHeight = sinA * 25;
-                const xLift = -archHeight * Math.sin(sliceProgress * Math.PI);
                 const drawH = sliceH * Math.max(0.01, Math.abs(cosA));
-                const dy = lineY + dirSign * (sliceProgress * foldHeight * Math.abs(cosA));
-                const sliceY = dy - (dirSign === -1 ? drawH : 0);
+                const dy = lineY + dirSign * (sliceProgress * foldHeight * cosA);
+                const sliceY = dy - drawH / 2;
 
                 const lightFactor = isFront
-                    ? 1 - sinA * 0.25 * sliceProgress
-                    : 0.65 + cosA * cosA * 0.3;
+                    ? 1 - sinA * 0.15
+                    : 0.7 + cosA * cosA * 0.25;
 
                 ctx.save();
                 ctx.beginPath();
-                ctx.rect(gridLeft + xLift, sliceY, gridW, drawH + 1);
+                ctx.rect(gridLeft, sliceY, gridW, drawH + 1);
                 ctx.clip();
 
-                const tex = isFront ? Effects.getTileCanvas(Grid.PATH) : Effects.getBackTileCanvas();
-                if (tex) {
-                    ctx.drawImage(tex, gridLeft + xLift, sliceY, gridW, drawH + 1);
+                let srcCanvas, srcCenterY;
+                if (isFront) {
+                    srcCanvas = snapBefore;
+                    srcCenterY = lineYSnap + dirSign * sliceProgress * foldHeight;
+                } else {
+                    srcCanvas = snapAfter;
+                    srcCenterY = side === 'top'
+                        ? (sliceProgress * foldHeight)
+                        : (lineYSnap - sliceProgress * foldHeight);
                 }
 
-                ctx.fillStyle = `rgba(0,0,0,${(1 - lightFactor) * 0.55})`;
-                ctx.fillRect(gridLeft + xLift, sliceY, gridW, drawH + 1);
-
-                if (isFront && sliceProgress > 0.85) {
-                    ctx.fillStyle = `rgba(255,255,240,${sinA * 0.25})`;
-                    ctx.fillRect(gridLeft + xLift, sliceY, gridW, drawH + 1);
+                if (srcCanvas) {
+                    const srcY = srcCenterY - sliceH / 2;
+                    ctx.drawImage(srcCanvas, 0, srcY, gridW, sliceH, gridLeft, sliceY, gridW, drawH + 1);
                 }
+
+                ctx.fillStyle = `rgba(0,0,0,${(1 - lightFactor) * 0.5})`;
+                ctx.fillRect(gridLeft, sliceY, gridW, drawH + 1);
 
                 ctx.restore();
             }
@@ -288,19 +516,40 @@ const Fold = {
         const intensity = Math.sin(t * Math.PI);
         if (intensity <= 0) return;
 
+        const isVert = x1 === x2;
+        const ext = 10;
+
         ctx.save();
-        ctx.globalAlpha = intensity * 0.8;
-        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+
+        if (isVert) {
+            const grad = ctx.createLinearGradient(x1 - ext, 0, x1 + ext, 0);
+            grad.addColorStop(0, 'rgba(0,0,0,0)');
+            grad.addColorStop(0.5, `rgba(0,0,0,${intensity * 0.3})`);
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(x1 - ext, Math.min(y1, y2), ext * 2, Math.abs(y2 - y1));
+        } else {
+            const grad = ctx.createLinearGradient(0, y1 - ext, 0, y1 + ext);
+            grad.addColorStop(0, 'rgba(0,0,0,0)');
+            grad.addColorStop(0.5, `rgba(0,0,0,${intensity * 0.3})`);
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(Math.min(x1, x2), y1 - ext, Math.abs(x2 - x1), ext * 2);
+        }
+
+        ctx.globalAlpha = intensity * 0.9;
+        ctx.strokeStyle = 'rgba(255,248,225,0.75)';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
 
-        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.globalAlpha = intensity * 0.55;
+        ctx.strokeStyle = 'rgba(40,25,15,0.7)';
         ctx.lineWidth = 1;
-        const offset = x1 === x2 ? 2 : 0;
-        const offsetY = y1 === y2 ? 2 : 0;
+        const offset = isVert ? 1.5 : 0;
+        const offsetY = isVert ? 0 : 1.5;
         ctx.beginPath();
         ctx.moveTo(x1 + offset, y1 + offsetY);
         ctx.lineTo(x2 + offset, y2 + offsetY);
@@ -323,9 +572,20 @@ const Fold = {
     undo() {
         if (this.history.length === 0 || this.animating) return false;
         const prev = this.history.pop();
+        Grid.gridWidth = prev.gridWidth;
+        Grid.gridHeight = prev.gridHeight;
         Grid.displayGrid = prev.display;
         Grid.currentFront = prev.front;
-        this.creaseHistory.pop();
+        Grid.currentBack = prev.back;
+        Grid.offsetX = prev.offsetX;
+        Grid.offsetY = prev.offsetY;
+        this.creaseHistory = prev.creases.slice();
+        Player.x = prev.playerX;
+        Player.y = prev.playerY;
+        Player.targetX = Player.x;
+        Player.targetY = Player.y;
+        Player.pixelX = Grid.offsetX + Player.x * Grid.TILE_SIZE + Grid.TILE_SIZE / 2;
+        Player.pixelY = Grid.offsetY + Player.y * Grid.TILE_SIZE + Grid.TILE_SIZE / 2;
         return true;
     },
 
@@ -339,6 +599,8 @@ const Fold = {
 
     drawFoldPreview(ctx) {
         if (!this.hoveredEdge || this.animating) return;
+        if (typeof Player !== 'undefined' && Player.moving) return;
+        if (typeof Game !== 'undefined' && Game.state !== 'playing') return;
         const edge = this.hoveredEdge;
         const side = this.hoveredSide;
         const TS = Grid.TILE_SIZE;

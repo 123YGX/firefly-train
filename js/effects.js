@@ -3,7 +3,7 @@ const Effects = {
     bgFireflies: [],
     initialized: false,
     currentChapter: -1,
-    images: { tiles: {}, decor: {}, backgrounds: {}, paperBack: null },
+    images: { tiles: {}, decor: {}, backgrounds: {}, levels: {}, paperBack: null },
 
     init() {
         if (this.initialized) return;
@@ -41,6 +41,285 @@ const Effects = {
             this.images.decor[n] = load(`assets/decor/${n}.jpg`);
         });
         this.images.decor.stilted_house = load('assets/decor/stilted_house.png');
+    },
+
+    loadLevelImages(level) {
+        const load = (path) => {
+            if (!path || path.startsWith('procedural:')) return;
+            if (this.images.levels[path]) return this.images.levels[path];
+            const img = new Image();
+            img.src = path;
+            this.images.levels[path] = img;
+            return img;
+        };
+        if (level && level.bgImageFront) load(level.bgImageFront);
+        if (level && level.bgImageBack) load(level.bgImageBack);
+    },
+
+    getLevelImage(path) {
+        if (!path) return null;
+        if (path.startsWith('procedural:')) {
+            return this.getProceduralLevel(path.slice('procedural:'.length));
+        }
+        const img = this.images.levels[path];
+        return this._isReady(img) ? img : null;
+    },
+
+    _proceduralLevelCache: {},
+    getProceduralLevel(key) {
+        if (this._proceduralLevelCache[key]) return this._proceduralLevelCache[key];
+        const builder = this._proceduralBuilders[key];
+        if (!builder) return null;
+        const c = document.createElement('canvas');
+        c.width = 800;
+        c.height = 480;
+        builder.call(this, c.getContext('2d'), c.width, c.height);
+        this._proceduralLevelCache[key] = c;
+        return c;
+    },
+
+    _seededRand(seed) {
+        const x = Math.sin(seed * 12.9898) * 43758.5453;
+        return x - Math.floor(x);
+    },
+
+    _drawWoodDesk(ctx, w, h) {
+        const g = ctx.createLinearGradient(0, 0, w, h);
+        g.addColorStop(0, '#7a5638');
+        g.addColorStop(0.6, '#5a3e26');
+        g.addColorStop(1, '#3e2a18');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+        ctx.save();
+        ctx.globalAlpha = 0.18;
+        ctx.strokeStyle = '#2a1a0c';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 28; i++) {
+            const y = (i / 28) * h + this._seededRand(i + 1) * 6;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            for (let x = 0; x <= w; x += 12) {
+                const yo = y + Math.sin(x * 0.013 + i * 1.3) * 2.2 + (this._seededRand(i * 5 + x) - 0.5) * 1.5;
+                ctx.lineTo(x, yo);
+            }
+            ctx.stroke();
+        }
+        ctx.restore();
+        const img = ctx.getImageData(0, 0, w, h);
+        const d = img.data;
+        for (let i = 0; i < d.length; i += 4) {
+            const n = (Math.random() - 0.5) * 14;
+            d[i] = Math.max(0, Math.min(255, d[i] + n));
+            d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n));
+            d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n));
+        }
+        ctx.putImageData(img, 0, 0);
+    },
+
+    _drawLampGlow(ctx, w, h) {
+        const cx = 110, cy = 90;
+        const rg = ctx.createRadialGradient(cx, cy, 30, cx, cy, w * 0.85);
+        rg.addColorStop(0, 'rgba(255,235,160,0.55)');
+        rg.addColorStop(0.35, 'rgba(255,210,120,0.25)');
+        rg.addColorStop(1, 'rgba(255,180,80,0)');
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = rg;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+    },
+
+    _drawNotebook(ctx, w, h) {
+        const px = 50, py = 70, pw = w - 100, ph = h - 130;
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.45)';
+        ctx.shadowBlur = 22;
+        ctx.shadowOffsetY = 8;
+        ctx.fillStyle = '#f5ecd0';
+        ctx.fillRect(px, py, pw, ph);
+        ctx.restore();
+        const img = ctx.getImageData(px, py, pw, ph);
+        const d = img.data;
+        for (let i = 0; i < d.length; i += 4) {
+            const n = (Math.random() - 0.5) * 10;
+            d[i] = Math.max(0, Math.min(255, d[i] + n));
+            d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n));
+            d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n));
+        }
+        ctx.putImageData(img, px, py);
+        ctx.save();
+        ctx.globalAlpha = 0.22;
+        ctx.strokeStyle = '#b8a78a';
+        ctx.lineWidth = 1;
+        for (let y = py + 30; y < py + ph - 20; y += 28) {
+            ctx.beginPath();
+            ctx.moveTo(px + 20, y);
+            ctx.lineTo(px + pw - 20, y);
+            ctx.stroke();
+        }
+        ctx.restore();
+        ctx.save();
+        ctx.strokeStyle = 'rgba(80,60,40,0.35)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(w / 2, py + 4);
+        ctx.lineTo(w / 2, py + ph - 4);
+        ctx.stroke();
+        ctx.restore();
+        return { px, py, pw, ph };
+    },
+
+    _drawPencilRoad(ctx, x1, x2, yCenter, brokenL, brokenR) {
+        ctx.save();
+        const drawRail = (offset) => {
+            ctx.beginPath();
+            ctx.strokeStyle = '#3a2a18';
+            ctx.lineWidth = 2.6;
+            ctx.lineCap = 'round';
+            let started = false;
+            for (let x = x1; x <= x2; x += 4) {
+                if (x >= brokenL && x <= brokenR) { started = false; continue; }
+                const y = yCenter + offset + Math.sin(x * 0.05) * 1.5 + (this._seededRand(x + offset * 7) - 0.5) * 1.2;
+                if (!started) { ctx.moveTo(x, y); started = true; }
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        };
+        drawRail(-14);
+        drawRail(14);
+        ctx.fillStyle = '#3a2a18';
+        for (let x = x1 + 12; x <= x2 - 12; x += 18) {
+            if (x >= brokenL - 6 && x <= brokenR + 6) continue;
+            const y = yCenter + Math.sin(x * 0.05) * 1.5;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(Math.sin(x * 0.03) * 0.08);
+            ctx.fillRect(-2, -16, 4, 32);
+            ctx.restore();
+        }
+        ctx.restore();
+    },
+
+    _drawTear(ctx, cx, cy, halfW, halfH) {
+        ctx.save();
+        ctx.fillStyle = '#2a1a0c';
+        ctx.beginPath();
+        const points = [];
+        const segments = 14;
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments;
+            const x = cx - halfW + t * halfW * 2;
+            const yJitter = (this._seededRand(i * 3 + 1) - 0.5) * 14;
+            points.push([x, cy - halfH + yJitter]);
+        }
+        for (let i = segments; i >= 0; i--) {
+            const t = i / segments;
+            const x = cx - halfW + t * halfW * 2;
+            const yJitter = (this._seededRand(i * 5 + 2) - 0.5) * 14;
+            points.push([x, cy + halfH + yJitter]);
+        }
+        ctx.moveTo(points[0][0], points[0][1]);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.55;
+        ctx.beginPath();
+        ctx.moveTo(cx - halfW, cy - halfH - 2);
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments;
+            const x = cx - halfW + t * halfW * 2;
+            const y = cy - halfH + (this._seededRand(i * 3 + 1) - 0.5) * 14 - 2;
+            ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(cx - halfW, cy + halfH + 2);
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments;
+            const x = cx - halfW + t * halfW * 2;
+            const y = cy + halfH + (this._seededRand(i * 5 + 2) - 0.5) * 14 + 2;
+            ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+    },
+
+    _drawRedMarks(ctx, cx, cy) {
+        ctx.save();
+        ctx.strokeStyle = '#c8321f';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.moveTo(cx - 26, cy - 22);
+        ctx.lineTo(cx + 26, cy + 22);
+        ctx.moveTo(cx + 26, cy - 22);
+        ctx.lineTo(cx - 26, cy + 22);
+        ctx.stroke();
+        ctx.font = 'bold 22px "Microsoft YaHei", serif';
+        ctx.fillStyle = '#c8321f';
+        ctx.globalAlpha = 0.9;
+        ctx.fillText('78', cx - 18, cy + 55);
+        ctx.restore();
+    },
+
+    _drawPencil(ctx, cx, cy, angle) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(angle);
+        ctx.shadowColor = 'rgba(0,0,0,0.35)';
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetY = 3;
+        ctx.fillStyle = '#e8c460';
+        ctx.fillRect(-70, -5, 130, 10);
+        ctx.fillStyle = '#3a2a18';
+        ctx.beginPath();
+        ctx.moveTo(60, -5);
+        ctx.lineTo(78, 0);
+        ctx.lineTo(60, 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#c8a040';
+        ctx.fillRect(-78, -5, 8, 10);
+        ctx.restore();
+    },
+
+    _proceduralBuilders: {
+        ch1_lv1_front(ctx, w, h) {
+            this._drawWoodDesk(ctx, w, h);
+            this._drawLampGlow(ctx, w, h);
+            const nb = this._drawNotebook(ctx, w, h);
+            const yCenter = 280;
+            this._drawPencilRoad(ctx, nb.px + 20, nb.px + nb.pw - 20, yCenter, 320, 480);
+            this._drawTear(ctx, 400, yCenter, 80, 32);
+            this._drawRedMarks(ctx, 400, yCenter);
+            this._drawPencil(ctx, 640, 380, -0.35);
+        },
+        ch1_lv1_back(ctx, w, h) {
+            this._drawWoodDesk(ctx, w, h);
+            ctx.save();
+            ctx.fillStyle = 'rgba(20,15,30,0.18)';
+            ctx.fillRect(0, 0, w, h);
+            ctx.restore();
+            this._drawLampGlow(ctx, w, h);
+            const nb = this._drawNotebook(ctx, w, h);
+            const yCenter = 280;
+            this._drawPencilRoad(ctx, nb.px + 20, nb.px + nb.pw - 20, yCenter, -1, -1);
+            ctx.save();
+            ctx.strokeStyle = '#3a8a3a';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.globalAlpha = 0.75;
+            ctx.beginPath();
+            ctx.moveTo(380, yCenter + 45);
+            ctx.lineTo(395, yCenter + 60);
+            ctx.lineTo(425, yCenter + 30);
+            ctx.stroke();
+            ctx.restore();
+            this._drawPencil(ctx, 640, 380, -0.35);
+        }
     },
 
     _processedEdgeMasks: [],
@@ -333,37 +612,68 @@ const Effects = {
 
     _initBgFireflies() {
         this.bgFireflies = [];
-        for (let i = 0; i < 15; i++) {
+        // 增加萤火虫数量到30个,让主菜单更有氛围
+        for (let i = 0; i < 30; i++) {
             this.bgFireflies.push({
-                x: Math.random() * 1400, y: Math.random() * 900,
-                vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.3,
-                size: 1.5 + Math.random() * 2.5,
+                x: Math.random() * 1400,
+                y: Math.random() * 900,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.4,
+                size: 1.5 + Math.random() * 3,
                 phase: Math.random() * Math.PI * 2,
-                speed: 0.02 + Math.random() * 0.02
+                speed: 0.015 + Math.random() * 0.025,
+                // 添加垂直漂浮效果
+                floatPhase: Math.random() * Math.PI * 2,
+                floatSpeed: 0.001 + Math.random() * 0.002,
+                floatAmplitude: 15 + Math.random() * 25
             });
         }
     },
 
     updateBgFireflies() {
+        const now = Date.now();
         for (const f of this.bgFireflies) {
-            f.x += f.vx; f.y += f.vy;
-            if (f.x < -10) f.x = 1410; if (f.x > 1410) f.x = -10;
-            if (f.y < -10) f.y = 910; if (f.y > 910) f.y = -10;
+            // 添加垂直漂浮效果
+            const floatOffset = Math.sin(now * f.floatSpeed + f.floatPhase) * f.floatAmplitude * 0.01;
+            f.x += f.vx;
+            f.y += f.vy + floatOffset;
+
+            // 边界循环
+            if (f.x < -10) f.x = 1410;
+            if (f.x > 1410) f.x = -10;
+            if (f.y < -10) f.y = 910;
+            if (f.y > 910) f.y = -10;
         }
     },
 
     drawBgFireflies(ctx) {
         const now = Date.now();
         for (const f of this.bgFireflies) {
-            const alpha = 0.15 + 0.35 * Math.sin(now * f.speed * 0.01 + f.phase);
+            // 呼吸闪烁效果
+            const alpha = 0.2 + 0.5 * Math.sin(now * f.speed * 0.01 + f.phase);
+
             ctx.save();
             ctx.globalAlpha = alpha;
-            ctx.shadowColor = '#c8ff32';
-            ctx.shadowBlur = 10;
-            ctx.fillStyle = '#c8ff32';
+
+            // 增强发光效果
+            const glowSize = f.size * 3;
+            const gradient = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, glowSize);
+            gradient.addColorStop(0, 'rgba(200, 255, 50, ' + alpha + ')');
+            gradient.addColorStop(0.4, 'rgba(200, 255, 50, ' + (alpha * 0.3) + ')');
+            gradient.addColorStop(1, 'rgba(200, 255, 50, 0)');
+
+            ctx.fillStyle = gradient;
             ctx.beginPath();
-            ctx.arc(f.x, f.y, f.size, 0, Math.PI * 2);
+            ctx.arc(f.x, f.y, glowSize, 0, Math.PI * 2);
             ctx.fill();
+
+            // 核心亮点
+            ctx.globalAlpha = alpha * 1.2;
+            ctx.fillStyle = '#ffff99';
+            ctx.beginPath();
+            ctx.arc(f.x, f.y, f.size * 0.6, 0, Math.PI * 2);
+            ctx.fill();
+
             ctx.restore();
         }
     },

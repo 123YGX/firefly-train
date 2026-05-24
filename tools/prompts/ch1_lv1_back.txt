@@ -1,0 +1,13 @@
+A flat top-down picture book illustration of the same wooden student desk seen earlier, but now at night. Viewed straight from above, wide horizontal 16:9 composition.
+
+Same warm honey-brown wood desk surface, same scattered objects keeping their general positions for visual continuity:
+- The textbook on the upper-left is now CLOSED, with the train ticket pulled out and lying ON TOP of it
+- The exam paper at upper-right is partially covered by a folded paper map of a journey route
+- The pencil case at lower-left is open, with a single pencil drawing a small map sketch on a scrap of paper
+- The desk lamp upper-right is turned OFF; light source is now COOL MOONLIGHT pouring in from the upper edge, casting soft silver-blue tones
+- The tea mug lower-right has gone cold, with a few small drifting fireflies (warm yellow glow) hovering above it
+- A few small drifting fireflies scattered around the desk, gentle warm spots in the moonlight
+
+Crucially: the CENTRAL portion of the desk (roughly the middle 60% horizontally and middle 70% vertically) must be CLEAN and LARGELY EMPTY — soft moonlit wood surface only — so a game UI grid can sit on top without visual conflict.
+
+Art style: soft watercolor washes with delicate ink line work, gentle Chinese picture book illustration, but now with a COOLER palette — silvery blue moonlight, deeper wood shadows, warm firefly accents. Mood: quiet night, dreaming of travel, hopeful and intimate. No text labels, no human figures.
