@@ -1,0 +1,13 @@
+A vintage dark-green diesel locomotive with multiple passenger cars trailing behind, viewed from a front-three-quarter angle slightly above and to the left, isolated on a PURE TRANSPARENT BACKGROUND.
+
+The locomotive is the same style as classic Chinese 1970s passenger trains: dark green body with a single thin red horizontal stripe along the side, lit warm-yellow windows, a bright warm amber headlight glowing strongly forward toward the lower-left of the frame, brass fittings, weathered metal texture. Multiple passenger cars trail behind the locomotive, gradually receding into the distance with proper perspective foreshortening — at least 4 cars visible, each shorter than the one before due to perspective.
+
+The train is positioned so the locomotive head occupies the lower-left portion of the frame and the cars trail back toward the upper-right, as if the train is curving on a track that comes from the distance toward the camera. The leading edge of the train (front of locomotive) sits at roughly 25% from the left and 60% from the top of the frame.
+
+Painted storybook illustration style, Studio Ghibli aesthetic, hand-painted brushwork, gentle outlines, slight grainy texture. NOT photorealistic, NOT anime, NOT 3D rendered.
+
+Lighting: dusk magic-hour, warm amber accent light on the front and one side of the locomotive (as if the warm dusk sun is to the left), cool purple-blue rim light on the other side. Slight ambient firefly glow underneath.
+
+CRITICAL: the BACKGROUND must be COMPLETELY FILLED with PURE SOLID MAGENTA color, RGB exactly (255, 0, 255), hex #ff00ff. The magenta MUST cover every pixel that is NOT the train itself, edge to edge to edge to edge of the frame. NO sky, NO landscape, NO ground, NO rails, NO grass, NO clouds, NO drop shadow on the ground. ONLY the train itself, with sharp clean edges against pure flat magenta. Do NOT use the magenta color anywhere on the train (no magenta paint, no magenta lights, no magenta highlights — keep the magenta strictly to the empty background).
+
+NO text, NO logos, NO UI, NO human figures, NO animals.

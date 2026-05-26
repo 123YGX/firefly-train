@@ -93,6 +93,57 @@ body {
     animation: titleGlow 3s ease-in-out infinite;
 }
 
+.menu-logo {
+    width: min(640px, 70vw);
+    height: auto;
+    margin: 0 auto 14px;
+    display: block;
+    filter: drop-shadow(0 8px 22px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 18px rgba(255, 217, 125, 0.25));
+    z-index: 1;
+    position: relative;
+    animation: menuLogoFloat 4.8s ease-in-out infinite;
+}
+
+@keyframes menuLogoFloat {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-6px); }
+}
+
+.game-logo {
+    width: 240px;
+    height: 140px;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 6px 18px rgba(168, 230, 207, 0.18));
+    z-index: 1;
+}
+
+.game-logo .logo-firefly,
+.game-logo .logo-firefly-halo {
+    transform-origin: 48px 56px;
+    animation: logoFireflyPulse 2.6s ease-in-out infinite;
+}
+
+.game-logo .logo-firefly-halo {
+    animation-duration: 3.2s;
+}
+
+.game-logo .logo-sparks circle {
+    animation: logoSparkTwinkle 2.4s ease-in-out infinite;
+}
+.game-logo .logo-sparks circle:nth-child(2) { animation-delay: 0.6s; }
+.game-logo .logo-sparks circle:nth-child(3) { animation-delay: 1.2s; }
+.game-logo .logo-sparks circle:nth-child(4) { animation-delay: 1.8s; }
+
+@keyframes logoFireflyPulse {
+    0%, 100% { opacity: 0.55; transform: scale(0.92); }
+    50%      { opacity: 1;    transform: scale(1.08); }
+}
+
+@keyframes logoSparkTwinkle {
+    0%, 100% { opacity: 0.2; }
+    50%      { opacity: 1; }
+}
+
 @keyframes titleGlow {
     0%, 100% {
         text-shadow: 0 0 20px rgba(255, 183, 77, 0.6),
@@ -314,6 +365,7 @@ body {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
+    flex-shrink: 0;
 }
 
 .chapter-block::before {
@@ -646,3 +698,696 @@ body {
     justify-content: center;
     gap: 12px;
 }
+
+/* ============================================================
+   夜行萤火 · 火车票样式 UI 改造 (任务 #3)
+   ------------------------------------------------------------
+   作用域：#chapter-screen 关卡选择 + #menu-screen 主菜单
+   配色：夜行萤火（深蓝底 + 萤火冷绿光 + 暖黄点缀）
+   实现：纯 CSS + SVG，撕裂边用 radial-gradient 抠半圆缺口
+   ============================================================ */
+
+#chapter-screen.train-mode {
+    background:
+        linear-gradient(180deg, rgba(255, 235, 200, 0.18) 0%, rgba(40, 28, 18, 0.45) 60%, rgba(20, 14, 10, 0.72) 100%),
+        url('../assets/backgrounds/chapter_bg_station.jpg') center / cover no-repeat fixed;
+    position: relative;
+}
+
+#chapter-screen.train-mode::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 35%, transparent 0%, rgba(20, 14, 10, 0.35) 80%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+#chapter-screen.train-mode > * { position: relative; z-index: 1; }
+
+#chapter-screen.train-mode h2 {
+    color: #ffd97d;
+    font-size: 22px;
+    letter-spacing: 4px;
+    margin-bottom: 8px;
+    text-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.6),
+        0 0 18px rgba(255, 217, 125, 0.4);
+}
+
+.train-mode .platform-subtitle {
+    color: #f4ead0;
+    font-size: 12px;
+    letter-spacing: 6px;
+    margin-bottom: 26px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+#chapter-screen.train-mode #chapter-list {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    max-width: 760px;
+    width: 100%;
+    margin-bottom: 18px;
+    max-height: 700px;
+    overflow-y: auto;
+    padding: 8px 24px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 217, 125, 0.35) transparent;
+}
+
+#chapter-screen.train-mode #chapter-list::-webkit-scrollbar { width: 6px; }
+#chapter-screen.train-mode #chapter-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 217, 125, 0.35);
+    border-radius: 3px;
+}
+
+/* ---- 站台牌（章节段头） ---- */
+
+.train-mode .platform-sign {
+    position: relative;
+    padding: 4px 0 14px;
+}
+
+.train-mode .platform-name {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    color: #ffd97d;
+    font-size: 15px;
+    letter-spacing: 3px;
+    padding: 8px 0 6px;
+    font-weight: 500;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
+}
+
+.train-mode .platform-name .ch-num {
+    color: #ffd97d;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    letter-spacing: 2px;
+    border: 1px solid rgba(255, 217, 125, 0.7);
+    padding: 2px 8px;
+    border-radius: 2px;
+    background: rgba(60, 38, 18, 0.45);
+}
+
+.train-mode .platform-name .ch-name {
+    flex: 1;
+}
+
+.train-mode .platform-name .ch-meta {
+    color: #f4ead0;
+    font-size: 11px;
+    font-family: 'Consolas', monospace;
+    letter-spacing: 1px;
+    opacity: 0.85;
+}
+
+.train-mode .platform-sign.locked .platform-name {
+    color: #b8a890;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.train-mode .platform-sign.locked .ch-num {
+    border-color: rgba(184, 168, 144, 0.4);
+    color: #b8a890;
+    background: rgba(40, 28, 18, 0.35);
+}
+
+/* ---- 关卡车票 ---- */
+
+.train-mode .ticket-row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.train-mode .train-ticket {
+    --stub-w: 62px;
+    --tk-bg: #f4ead0;
+    --tk-bg-2: #e8d8a8;
+    --tk-edge: #c8a868;
+    --notch: 7px;
+    position: relative;
+    flex: 1 1 220px;
+    max-width: 240px;
+    min-height: 118px;
+    display: flex;
+    cursor: pointer;
+    border: none;
+    padding: 0;
+    background:
+        radial-gradient(circle at var(--stub-w) 0,    transparent var(--notch), var(--tk-bg) calc(var(--notch) + 1px)) top    left / 100% 50% no-repeat,
+        radial-gradient(circle at var(--stub-w) 100%, transparent var(--notch), var(--tk-bg) calc(var(--notch) + 1px)) bottom left / 100% 50% no-repeat;
+    border-radius: 6px;
+    color: inherit;
+    font-family: inherit;
+    text-align: left;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.25s ease,
+                filter 0.25s ease;
+    box-shadow:
+        0 6px 18px rgba(0, 0, 0, 0.45),
+        0 2px 4px rgba(0, 0, 0, 0.3),
+        inset 0 0 0 1px var(--tk-edge);
+}
+
+/* 票面织纹 */
+.train-mode .train-ticket::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 6px;
+    background:
+        repeating-linear-gradient(45deg, rgba(120, 80, 30, 0.04) 0 2px, transparent 2px 4px),
+        radial-gradient(ellipse at 30% 40%, rgba(255, 230, 170, 0.5), transparent 70%),
+        radial-gradient(ellipse at 80% 70%, rgba(200, 150, 80, 0.08), transparent 60%);
+    pointer-events: none;
+}
+
+/* 撕裂虚线 */
+.train-mode .train-ticket::after {
+    content: '';
+    position: absolute;
+    left: var(--stub-w);
+    top: var(--notch);
+    bottom: var(--notch);
+    width: 1px;
+    border-left: 1px dashed rgba(120, 80, 30, 0.55);
+    pointer-events: none;
+}
+
+/* 左联（票根） */
+.train-mode .ticket-stub .train-no {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 19px;
+    font-weight: 700;
+    color: #b8541a;
+    letter-spacing: 1px;
+    line-height: 1;
+    text-shadow: 0 0 4px rgba(255, 220, 160, 0.6);
+}
+
+.train-mode .ticket-stub .train-class {
+    font-family: 'Consolas', monospace;
+    font-size: 9px;
+    color: #8a6633;
+    letter-spacing: 1.5px;
+    margin-top: 2px;
+}
+
+.train-mode .ticket-stub .stub-bottom {
+    font-size: 9px;
+    color: #8a6633;
+    font-family: 'Consolas', monospace;
+    letter-spacing: 0.5px;
+    line-height: 1.3;
+}
+
+.train-mode .ticket-stub .stub-bottom .par {
+    color: #2d6e3a;
+}
+
+/* 右联（主信息） */
+.train-mode .ticket-main .route {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #3d2817;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+}
+
+.train-mode .ticket-main .route .arrow {
+    color: #b8541a;
+    font-size: 11px;
+}
+
+.train-mode .ticket-main .ticket-snippet {
+    color: #6b4a1f;
+    font-size: 10px;
+    line-height: 1.45;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    margin-bottom: 4px;
+    opacity: 0.85;
+}
+
+.train-mode .ticket-main .stars {
+    display: flex;
+    gap: 2px;
+    font-size: 11px;
+    color: #d99427;
+    text-shadow: 0 0 4px rgba(255, 217, 125, 0.4);
+    letter-spacing: 1px;
+}
+.train-mode .ticket-main .stars .empty { color: #c8b888; text-shadow: none; }
+
+/* 右下条码 */
+.train-mode .ticket-main .barcode {
+    position: absolute;
+    right: 10px;
+    bottom: 8px;
+    height: 14px;
+    width: 46px;
+    background: repeating-linear-gradient(
+        90deg,
+        rgba(60, 36, 16, 0.7) 0 1px,
+        transparent 1px 2px,
+        rgba(60, 36, 16, 0.7) 2px 4px,
+        transparent 4px 5px,
+        rgba(60, 36, 16, 0.7) 5px 6px,
+        transparent 6px 8px
+    );
+    opacity: 0.65;
+}
+
+/* 状态印章 */
+.train-mode .ticket-stamp {
+    position: absolute;
+    right: 10px;
+    top: 8px;
+    font-size: 9px;
+    font-family: 'Consolas', monospace;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    border: 1px solid;
+    border-radius: 2px;
+    line-height: 1;
+    z-index: 2;
+}
+.train-mode .ticket-stamp.unlocked {
+    color: #2d6e3a;
+    border-color: rgba(45, 110, 58, 0.65);
+    background: rgba(180, 220, 140, 0.25);
+    animation: stamp-glow 2s ease-in-out infinite;
+}
+.train-mode .ticket-stamp.completed {
+    color: #b8331a;
+    border-color: rgba(184, 51, 26, 0.75);
+    background: rgba(220, 130, 80, 0.18);
+    transform: rotate(-6deg);
+    box-shadow: 0 0 0 1px rgba(184, 51, 26, 0.3);
+}
+.train-mode .ticket-stamp.locked {
+    color: #8a7560;
+    border-color: rgba(138, 117, 96, 0.5);
+    background: rgba(60, 40, 20, 0.15);
+}
+
+@keyframes stamp-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(45, 110, 58, 0); }
+    50%      { box-shadow: 0 0 8px 1px rgba(45, 110, 58, 0.45); }
+}
+
+/* 萤火粒子 */
+.train-mode .train-ticket .firefly {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    border-radius: 50%;
+    background: #fff4c8;
+    box-shadow: 0 0 6px 1px rgba(255, 217, 125, 0.85);
+    pointer-events: none;
+    animation: firefly-drift 4s ease-in-out infinite;
+    opacity: 0;
+}
+
+@keyframes firefly-drift {
+    0%, 100% { transform: translate(0, 0); opacity: 0; }
+    25%      { opacity: 0.95; }
+    50%      { transform: translate(8px, -10px); opacity: 0.75; }
+    75%      { opacity: 0.4; }
+}
+
+/* hover */
+.train-mode .train-ticket:hover {
+    transform: translateY(-3px) rotate(-0.4deg);
+    filter: brightness(1.06);
+    box-shadow:
+        0 10px 26px rgba(0, 0, 0, 0.5),
+        0 0 16px rgba(255, 217, 125, 0.35),
+        inset 0 0 0 1px #d9b878;
+}
+.train-mode .train-ticket:hover .firefly { animation-play-state: running; }
+
+.train-mode .train-ticket:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* 已通关 */
+.train-mode .train-ticket.completed {
+    --tk-bg: #ead8a8;
+    filter: saturate(0.92);
+}
+
+/* 锁定 */
+.train-mode .train-ticket.locked {
+    --tk-bg: #b8a888;
+    cursor: not-allowed;
+    filter: grayscale(0.5) brightness(0.7);
+    opacity: 0.7;
+}
+.train-mode .train-ticket.locked:hover {
+    transform: none;
+    filter: grayscale(0.5) brightness(0.7);
+    box-shadow:
+        0 4px 14px rgba(0, 0, 0, 0.4),
+        inset 0 0 0 1px var(--tk-edge);
+}
+
+/* 撕票动画：点击进入关卡时 */
+.train-mode .train-ticket.tearing {
+    animation: tear-off 0.55s cubic-bezier(0.6, 0.05, 0.9, 0.5) forwards;
+    pointer-events: none;
+}
+
+@keyframes tear-off {
+    0% {
+        transform: translateY(-3px) rotate(-0.4deg);
+        opacity: 1;
+    }
+    35% {
+        transform: translateX(8px) translateY(-6px) rotate(-3deg) scale(1.01);
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    }
+    100% {
+        transform: translateX(80px) translateY(-180px) rotate(18deg) scale(0.6);
+        opacity: 0;
+        filter: blur(2px);
+    }
+}
+
+/* 章节锁定时不显示 ticket-row（保留站台牌灰显） */
+.train-mode .platform-sign.locked + .ticket-row { display: none; }
+
+/* 首次进选关屏：第一张可玩票引导脉冲 + ↓ 提示 */
+.train-mode .train-ticket.first-time-hint {
+    animation: ticket-first-hint 1.4s ease-in-out 3;
+    z-index: 2;
+}
+.train-mode .train-ticket .hint-label {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translateX(-50%);
+    color: #ffd97d;
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7), 0 0 8px rgba(255, 217, 125, 0.6);
+    white-space: nowrap;
+    animation: hint-bob 1.4s ease-in-out 3;
+    pointer-events: none;
+    z-index: 3;
+}
+@keyframes ticket-first-hint {
+    0%, 100% {
+        box-shadow:
+            0 6px 18px rgba(0, 0, 0, 0.45),
+            inset 0 0 0 1px #c8a868;
+    }
+    50% {
+        box-shadow:
+            0 8px 24px rgba(255, 217, 125, 0.55),
+            0 0 0 2px rgba(255, 217, 125, 0.8),
+            inset 0 0 0 1px #ffd97d;
+        transform: translateY(-3px);
+    }
+}
+@keyframes hint-bob {
+    0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.9; }
+    50%      { transform: translateX(-50%) translateY(-4px); opacity: 1; }
+}
+
+/* ---- 主菜单 · 站台牌风格 ---- */
+
+#menu-screen.train-mode {
+    background: #0a1628;
+    overflow: hidden;
+}
+
+/* 菜单背景图 */
+#menu-screen.train-mode::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('../assets/backgrounds/menu_bg_landscape.jpg') center / cover no-repeat;
+    opacity: 1;
+    pointer-events: none;
+    z-index: 0;
+    transform-origin: 33% 38%;
+    transition: none;
+    will-change: transform, opacity;
+}
+
+/* 火车精灵：运行时由 ui.js 用 Canvas 抠掉洋红背景后注入（新图已自带火车，禁用此层） */
+#menu-screen.train-mode > .menu-train {
+    display: none;
+}
+
+/* 车头灯呼吸（新图自带车头灯，禁用此层） */
+#menu-screen.train-mode > .menu-headlight {
+    display: none;
+}
+
+/* 烟囱白烟（新图自带氛围，禁用此层） */
+#menu-screen.train-mode > .menu-smoke {
+    display: none;
+}
+#menu-screen.train-mode > .menu-smoke span {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 18px;
+    height: 18px;
+    margin-left: -9px;
+    border-radius: 50%;
+    background: radial-gradient(circle at center,
+        rgba(220, 220, 235, 0.55) 0%,
+        rgba(180, 190, 210, 0.25) 50%,
+        rgba(180, 190, 210, 0) 80%);
+    filter: blur(4px);
+    opacity: 0;
+    animation: smoke-rise 4.8s linear infinite;
+}
+#menu-screen.train-mode > .menu-smoke span:nth-child(2) { animation-delay: 1.6s; }
+#menu-screen.train-mode > .menu-smoke span:nth-child(3) { animation-delay: 3.2s; }
+@keyframes smoke-rise {
+    0%   { transform: translateY(0)    scale(0.6); opacity: 0; }
+    20%  { opacity: 0.55; }
+    70%  { opacity: 0.25; }
+    100% { transform: translateY(-130px) scale(2.4); opacity: 0; }
+}
+
+/* 高空云层（去雾改造，禁用此层） */
+#menu-screen.train-mode > .menu-clouds {
+    display: none;
+}
+
+/* 顶层暗化渐变（去雾改造，禁用此层） */
+#menu-screen.train-mode::after {
+    content: none;
+}
+
+/* 萤火粒子 Canvas */
+#menu-screen.train-mode > canvas.fireflies-canvas {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* 启程白光层 */
+#menu-screen.train-mode > .launch-flash {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 33% 38%,
+        rgba(255, 250, 220, 1) 0%,
+        rgba(255, 240, 200, 0.9) 25%,
+        rgba(255, 230, 180, 0.6) 55%,
+        rgba(255, 250, 220, 0) 90%);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 2;
+    will-change: opacity, transform;
+}
+
+/* 点击「开始旅程」后的电影化运镜 */
+#menu-screen.train-mode.launching::before {
+    animation: bg-rush-in 1.6s cubic-bezier(0.55, 0, 0.85, 0.4) forwards;
+}
+#menu-screen.train-mode.launching > .menu-train {
+    animation: train-rush-in 1.6s cubic-bezier(0.5, 0, 0.85, 0.55) forwards;
+}
+#menu-screen.train-mode.launching > .menu-headlight {
+    animation: headlight-rush 1.6s cubic-bezier(0.5, 0, 0.85, 0.55) forwards;
+}
+#menu-screen.train-mode.launching > .menu-smoke,
+#menu-screen.train-mode.launching > .menu-clouds {
+    animation: ui-fade-out 0.5s ease forwards;
+}
+#menu-screen.train-mode.launching .game-title,
+#menu-screen.train-mode.launching .subtitle,
+#menu-screen.train-mode.launching .menu-btn {
+    animation: ui-fade-out 0.6s ease forwards;
+}
+#menu-screen.train-mode.launching > .launch-flash {
+    animation: flash-in 1.6s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+}
+
+@keyframes bg-rush-in {
+    0%   { transform: scale(1.015);  filter: brightness(0.85) saturate(1.05) blur(0); }
+    35%  { transform: scale(1.18);   filter: brightness(0.95) saturate(1.1)  blur(0.5px); }
+    70%  { transform: scale(1.5);    filter: brightness(1.15) saturate(1.15) blur(2px); }
+    100% { transform: scale(2.1);    filter: brightness(1.6) saturate(1.05) blur(6px); opacity: 0.5; }
+}
+@keyframes train-rush-in {
+    0%   { transform: scale(1)   translate(0, 0)        rotate(0);     filter: drop-shadow(0 6px 14px rgba(0,0,0,0.45)); }
+    25%  { transform: scale(1.45) translate(-30px, 24px) rotate(-1deg); filter: drop-shadow(0 8px 18px rgba(0,0,0,0.5)) brightness(1.1); }
+    55%  { transform: scale(2.6) translate(-90px, 90px)  rotate(-2deg); filter: drop-shadow(0 12px 26px rgba(0,0,0,0.55)) brightness(1.35) blur(0.8px); }
+    80%  { transform: scale(4.5) translate(-200px, 200px) rotate(-3deg); filter: brightness(1.7) blur(2.5px); opacity: 0.85; }
+    100% { transform: scale(7.5) translate(-360px, 360px) rotate(-4deg); filter: brightness(2.4) blur(8px); opacity: 0.2; }
+}
+@keyframes headlight-rush {
+    0%   { transform: scale(1);   opacity: 0.8; }
+    35%  { transform: scale(1.6); opacity: 1; }
+    70%  { transform: scale(3.4); opacity: 0.9; }
+    100% { transform: scale(7);   opacity: 0; }
+}
+@keyframes flash-in {
+    0%   { opacity: 0; transform: scale(0.4); }
+    35%  { opacity: 0.15; transform: scale(0.8); }
+    70%  { opacity: 0.85; transform: scale(1.6); }
+    100% { opacity: 1;    transform: scale(2.4); }
+}
+@keyframes ui-fade-out {
+    0%   { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-12px); }
+}
+
+/* 内容提到背景之上 */
+#menu-screen.train-mode .menu-logo,
+#menu-screen.train-mode .game-title,
+#menu-screen.train-mode .subtitle,
+#menu-screen.train-mode .menu-btn {
+    position: relative;
+    z-index: 1;
+}
+
+#menu-screen.train-mode .game-title {
+    color: #ffd97d;
+    text-shadow:
+        0 0 22px rgba(255, 217, 125, 0.55),
+        0 0 44px rgba(255, 217, 125, 0.25);
+}
+
+#menu-screen.train-mode .game-title::before,
+#menu-screen.train-mode .game-title::after {
+    content: '◆';
+    color: #a8e6cf;
+    font-size: 20px;
+    margin: 0 18px;
+    vertical-align: middle;
+    opacity: 0.7;
+    text-shadow: 0 0 10px rgba(168, 230, 207, 0.5);
+}
+
+#menu-screen.train-mode .subtitle {
+    display: none;
+}
+
+#menu-screen.train-mode .menu-logo {
+    margin-top: -260px;
+    margin-bottom: 24px;
+}
+
+/* 把菜单按钮改成"奶油纸票"形 */
+#menu-screen.train-mode .menu-btn {
+    --stub-w: 28px;
+    --tk-bg: rgba(244, 234, 208, 0.92);
+    --tk-edge: rgba(184, 128, 40, 0.65);
+    --notch: 6px;
+    position: relative;
+    background:
+        radial-gradient(circle at var(--stub-w) 0,    transparent var(--notch), var(--tk-bg) calc(var(--notch) + 1px)) top    left / 100% 50% no-repeat,
+        radial-gradient(circle at var(--stub-w) 100%, transparent var(--notch), var(--tk-bg) calc(var(--notch) + 1px)) bottom left / 100% 50% no-repeat;
+    color: #6b3a14;
+    border: none;
+    box-shadow:
+        0 4px 14px rgba(0, 0, 0, 0.35),
+        inset 0 0 0 1px var(--tk-edge);
+    padding: 14px 36px 14px 48px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 6px;
+    font-family: inherit;
+    overflow: visible;
+    text-shadow: 0 1px 2px rgba(255, 240, 200, 0.6);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#menu-screen.train-mode .menu-btn::before {
+    content: '';
+    position: absolute;
+    left: var(--stub-w);
+    top: var(--notch);
+    bottom: var(--notch);
+    width: 0;
+    border-left: 1px dashed rgba(120, 80, 30, 0.55);
+    background: none;
+    border-radius: 0;
+    transform: none;
+    transition: none;
+}
+#menu-screen.train-mode .menu-btn:hover::before { width: 0; height: auto; }
+
+#menu-screen.train-mode .menu-btn::after {
+    content: '◆';
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #b8541a;
+    font-size: 8px;
+    text-shadow: 0 0 4px rgba(255, 217, 125, 0.7);
+}
+
+#menu-screen.train-mode .menu-btn:hover {
+    --tk-bg: rgba(255, 245, 215, 0.98);
+    color: #4a2810;
+    transform: translateY(-2px) rotate(-0.3deg);
+    box-shadow:
+        inset 0 0 0 1px rgba(184, 128, 40, 0.85),
+        0 8px 22px rgba(0, 0, 0, 0.45),
+        0 0 18px rgba(255, 217, 125, 0.35);
+}
+
+#menu-screen.train-mode .menu-btn:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* 返回按钮在 train-mode 下保持简洁 */
+#chapter-screen.train-mode #btn-back-menu {
+    margin-top: 4px;
+    color: #f4ead0;
+    border: 1px solid rgba(244, 234, 208, 0.45);
+    background: rgba(40, 28, 18, 0.45);
+    font-size: 12px;
+    letter-spacing: 4px;
+    padding: 8px 28px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+#chapter-screen.train-mode #btn-back-menu:hover {
+    color: #ffd97d;
+    border-color: rgba(255, 217, 125, 0.7);
+    background: rgba(60, 40, 18, 0.7);
+    transform: translateY(-1px);
+}
+

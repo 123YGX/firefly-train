@@ -1,0 +1,29 @@
+A painted storybook illustration, 16:9 wide cinematic composition. Mood: the start of a magical solo journey, warm and inviting, a Studio Ghibli meets Chinese picture book aesthetic, NOT photorealistic, NOT anime, NOT 3D rendered.
+
+Composition (very important — designed to be the camera's focal point for a zoom-in animation):
+- A vintage dark-green diesel locomotive winds along a single railway track from the BACKGROUND-CENTER curving toward the lower-left foreground. The TRAIN itself sits roughly at the visual center, slightly above the mid-line, on the rails — its bright warm yellow headlight glowing toward the viewer is the FOCAL POINT.
+- Several passenger cars trail behind the locomotive, snaking back into the distance.
+- Rails come from the train's position curving down-and-left to the foreground bottom-left corner — a clear leading line toward the train.
+- Tall snow-capped mountains form the deep background, soft purple-blue silhouettes.
+- Pine forest covers the mid-ground hillsides on both sides of the track, dark teal-green silhouettes.
+- A small winding river or stream weaves through the meadow on the right side, faintly reflecting the sky.
+- The foreground is a lush green meadow filled with countless small glowing yellow-green fireflies — soft luminous dots with halos, especially densely scattered in the lower third of the frame.
+
+Sky and light (critical):
+- Dusk sky transitioning: warm peach-orange near the horizon (behind the mountains, behind the train) fading up into a deep cool dusk-purple at the top of the frame.
+- A few soft pink-violet clouds streak the sky.
+- The light is the magical 'just after sunset' moment — warm enough to feel inviting but cool enough to let the fireflies glow.
+- The TOP THIRD of the image should be relatively quiet (just sky and faint clouds) so menu text can sit there without visual conflict.
+
+Color palette:
+- Sky: peach #ffc998 → dusk purple #4a3a6e (gradient top to bottom)
+- Forest: deep teal-green #2d4a3e
+- Meadow: vibrant grass green #6db66e
+- Train body: classic dark green #2d4a3e with red trim and warm yellow lit windows
+- Train headlight: warm amber-yellow #ffd97d, very bright with a soft halo
+- Fireflies: yellow-green #c8ff7d luminous dots
+- Mountains: cool lavender-blue #8b8eaa with white snow caps
+
+Style notes: hand-painted feel, soft brushwork, gentle outline definition (not hard cartoon outlines), slight grainy painterly texture, warm cinematic lighting. The image should feel like the splash screen of a magical journey game — cozy, hopeful, the camera about to fly forward into the world.
+
+NO text, NO logos, NO UI elements, NO human figures, NO animals.

@@ -18,15 +18,19 @@ const Effects = {
             img.src = path;
             return img;
         };
+        const tileVariants = { 1: { path: ['a', 'b', 'c'], wall: ['a', 'b'] } };
         for (let i = 1; i <= 6; i++) {
             this.images.tiles[`ch${i}_path`] = load(`assets/tiles/ch${i}_path.jpg`);
             this.images.tiles[`ch${i}_wall`] = load(`assets/tiles/ch${i}_wall.jpg`);
             this.images.backgrounds[`ch${i}`] = load(`assets/backgrounds/ch${i}_bg.jpg`);
-            for (const v of ['a', 'b', 'c']) {
-                this.images.tiles[`ch${i}_path_${v}`] = load(`assets/tiles/ch${i}_path_${v}.png`);
-            }
-            for (const v of ['a', 'b']) {
-                this.images.tiles[`ch${i}_wall_${v}`] = load(`assets/tiles/ch${i}_wall_${v}.png`);
+            const variants = tileVariants[i];
+            if (variants) {
+                for (const v of variants.path) {
+                    this.images.tiles[`ch${i}_path_${v}`] = load(`assets/tiles/ch${i}_path_${v}.png`);
+                }
+                for (const v of variants.wall) {
+                    this.images.tiles[`ch${i}_wall_${v}`] = load(`assets/tiles/ch${i}_wall_${v}.png`);
+                }
             }
         }
         this.images.paperBack = load('assets/tiles/paper_back.jpg');
