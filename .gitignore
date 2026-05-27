@@ -1,0 +1,21 @@
+# API keys / secrets
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build / runtime
+node_modules/
+*.log
+
+# Local screenshots / scratch
+screenshots/
+.tmp/

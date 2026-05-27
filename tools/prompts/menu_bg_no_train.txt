@@ -1,0 +1,27 @@
+A painted storybook illustration of a peaceful empty mountain railway scene at dusk, 16:9 wide cinematic composition, Studio Ghibli + Chinese picture book aesthetic, NOT photorealistic, NOT anime, NOT 3D rendered.
+
+CRITICAL: there is NO TRAIN in this image. Absolutely no locomotive, no railway cars, no rolling stock. The railroad tracks are completely EMPTY. This is a landscape-only scene.
+
+Composition (designed to allow a separate train sprite to be animated on top later):
+- A single railroad track curves from the BACKGROUND-CENTER toward the lower-left foreground, completely empty rails reflecting faint cool light. Wooden ties laid across, slightly weathered.
+- Tall snow-capped mountains form the deep background, soft purple-blue silhouettes.
+- Pine forest covers the mid-ground hillsides on both sides of the track, dark teal-green silhouettes.
+- A small winding river or stream weaves through the meadow on the right side, faintly reflecting the sky.
+- The foreground is a lush green meadow filled with countless small glowing yellow-green fireflies — soft luminous dots with halos, especially densely scattered in the lower third of the frame.
+
+Sky and light:
+- Dusk sky transitioning: warm peach-orange near the horizon (behind the mountains) fading up into a deep cool dusk-purple at the top of the frame.
+- A few soft pink-violet clouds streak the sky.
+- The light is the magical 'just after sunset' moment — warm enough to feel inviting but cool enough to let the fireflies glow.
+- The TOP THIRD of the image should be relatively quiet (just sky and faint clouds) so menu text can sit there without visual conflict.
+
+Color palette:
+- Sky: peach #ffc998 → dusk purple #4a3a6e (gradient top to bottom)
+- Forest: deep teal-green #2d4a3e
+- Meadow: vibrant grass green #6db66e
+- Mountains: cool lavender-blue #8b8eaa with white snow caps
+- Fireflies: yellow-green #c8ff7d luminous dots
+
+Style notes: hand-painted feel, soft brushwork, gentle outline definition (not hard cartoon outlines), slight grainy painterly texture, warm cinematic lighting.
+
+Final reminder: NO train, NO locomotive, NO railway vehicles, NO text, NO logos, NO UI elements, NO human figures, NO animals. Empty rails only.

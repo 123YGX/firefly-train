@@ -2,10 +2,12 @@ const Levels = {
     currentChapter: 0,
     currentLevel: 0,
     completed: new Set(),
+    stars: {},
 
     saveProgress() {
         try {
             localStorage.setItem('ft_completed', JSON.stringify([...this.completed]));
+            localStorage.setItem('ft_stars', JSON.stringify(this.stars));
         } catch (e) {}
     },
 
@@ -16,12 +18,25 @@ const Levels = {
                 const arr = JSON.parse(raw);
                 this.completed = new Set(arr);
             }
+            const rawStars = localStorage.getItem('ft_stars');
+            if (rawStars) {
+                this.stars = JSON.parse(rawStars) || {};
+            }
         } catch (e) {}
     },
 
-    markCurrentComplete() {
-        this.completed.add(`${this.currentChapter}-${this.currentLevel}`);
+    markCurrentComplete(stars) {
+        const key = `${this.currentChapter}-${this.currentLevel}`;
+        this.completed.add(key);
+        if (typeof stars === 'number' && stars > 0) {
+            const prev = this.stars[key] || 0;
+            if (stars > prev) this.stars[key] = stars;
+        }
         this.saveProgress();
+    },
+
+    getStars(chapterIdx, levelIdx) {
+        return this.stars[`${chapterIdx}-${levelIdx}`] || 0;
     },
 
     isLevelUnlocked(chapterIdx, levelIdx) {

@@ -1,0 +1,19 @@
+A wide cinematic illustration of a lonely night railway scene, 16:9 horizontal composition, painted in a quiet picture book style.
+
+Composition (very important):
+- The CENTER of the frame (middle 50% horizontally, middle 60% vertically) must be VERY DARK and EMPTY — deep navy night sky with only sparse stars and a few drifting firefly motes. This area will hold game UI text and buttons.
+- The LOWER 30% shows a railway track curving gently from foreground left into the distance, the rails reflecting faint cool green light, with wooden ties receding in perspective toward a vanishing point near the horizon.
+- The HORIZON LINE sits around 35% from the bottom. In the far distance, a single small train silhouette with a tiny warm yellow headlight glow, almost lost in the night haze.
+- Far background: low rolling hills barely visible against a deep blue night sky with subtle aurora-like green wisps, a faint crescent moon high up on the upper-left.
+- Foreground edges: silhouettes of tall reeds or grass on the bottom corners, very dark, just hinted shapes.
+- Many tiny firefly lights scattered throughout but especially concentrated low near the tracks and reeds — small luminous cool-green dots with soft halos.
+
+Color palette (strict):
+- Dominant: deep night navy #0a1628, #14294a
+- Secondary: firefly cool green #a8e6cf glows on rails, fireflies, aurora wisps
+- Accents: warm amber #ffd97d only on the distant train headlight and the crescent moon
+- NO red, NO orange beyond the tiny headlight, NO bright daylight
+
+Mood: solitary night journey, quiet contemplation, gentle melancholy, a long road ahead. Cinematic and atmospheric, like the cover of a graphic novel about traveling home alone.
+
+Art style: digital matte painting with soft brushwork, slight grainy night texture, gentle painterly edges, NOT photorealistic, NOT anime, NOT cartoon. Think of Studio Ghibli night scenes blended with Chinese ink wash atmosphere. No text, no logos, no human figures, no UI elements.

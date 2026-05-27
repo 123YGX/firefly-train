@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><title>autoshot</title>
+<link rel="stylesheet" href="css/style.css">
+<style id="nofx-style"></style>
+</head><body>
+<div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    <div id="transition-overlay"></div>
+    <div id="ui-layer">
+        <div id="menu-screen" class="screen active">
+            <img class="menu-logo" src="assets/decor/menu_logo.png" alt="萤火与列车">
+            <h1 class="game-title" hidden>萤火与列车</h1>
+            <p class="subtitle">一段关于独自旅行与自我和解的折纸解谜之旅</p>
+            <button id="btn-start" class="menu-btn">开启旅程</button>
+        </div>
+        <div id="story-screen" class="screen"><div class="story-box"><p id="story-text"></p><button id="btn-story-next" class="story-btn">继续</button></div></div>
+        <div id="game-screen" class="screen">
+            <div id="game-hud">
+                <span id="hud-chapter"></span><span id="hud-folds"></span><span id="hud-level"></span>
+                <div id="hud-buttons">
+                    <button id="btn-mute" class="hud-btn">♪</button>
+                    <button id="btn-undo" class="hud-btn">↩</button>
+                    <button id="btn-reset" class="hud-btn">↺</button>
+                    <button id="btn-hint" class="hud-btn">?</button>
+                    <button id="btn-exit" class="hud-btn">✕</button>
+                </div>
+            </div>
+            <div id="fold-indicator"></div>
+            <div id="tutorial-overlay"><div class="tutorial-box"><div class="tutorial-header"><span id="tutorial-title">教程</span><span id="tutorial-progress">1 / 5</span></div><p id="tutorial-text"></p><div class="tutorial-buttons"><button id="btn-tutorial-skip" class="tutorial-btn-secondary">跳过</button><button id="btn-tutorial-next" class="tutorial-btn-primary">下一步</button></div></div></div>
+            <div id="legend-panel">
+                <div class="legend-item"><span class="legend-dot" style="background:#4caf50"></span>起点</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#ff7043"></span>终点</div>
+                <div class="legend-item"><span class="legend-square" style="background:#2a4a6b"></span>路径</div>
+                <div class="legend-item"><span class="legend-square" style="background:#0d1520"></span>墙</div>
+                <div class="legend-item" id="legend-collect" style="display:none"><span class="legend-dot" style="background:#c8ff32"></span>萤火</div>
+                <div class="legend-item" id="legend-teleport" style="display:none"><span class="legend-dot" style="background:#00bcd4"></span>传送门</div>
+                <div class="legend-item" id="legend-fragile" style="display:none"><span class="legend-square" style="background:#3a6a9b"></span>脆弱</div>
+                <div class="legend-item" id="legend-oneway" style="display:none"><span class="legend-square" style="background:#2a4a6b"></span>单向</div>
+            </div>
+        </div>
+        <div id="chapter-screen" class="screen"><h2>章节选择</h2><div id="chapter-list"></div><button id="btn-back-menu" class="menu-btn">返回</button></div>
+        <div id="complete-screen" class="screen"><div class="complete-box"><h2 id="complete-title"></h2><div id="complete-stars"></div><p id="complete-text"></p><button id="btn-next-level" class="menu-btn">下一关</button></div></div>
+        <div id="confirm-overlay"><div class="confirm-box"><p id="confirm-text"></p><div class="confirm-buttons"><button id="btn-confirm-no" class="tutorial-btn-secondary">取消</button><button id="btn-confirm-yes" class="tutorial-btn-primary">退出</button></div></div></div>
+    </div>
+</div>
+<script src="js/story.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/tutorial.js"></script>
+<script src="js/grid.js"></script>
+<script src="js/fold.js"></script>
+<script src="js/player.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/particles.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+<script>
+// 驱动参数:
+//   ?screen=menu|chapter|story
+//   ?level=C-L         (1-indexed, 自动跳过教程)
+//   ?story=intro|before|after  (配合 level= 使用)
+//   ?complete=C-L      (直接展示过关界面)
+//   ?tut=1             (level= 时强制保留教程)
+//   ?unlock=1          (章节列表里解锁所有关卡)
+//   ?stars=1-1=3,1-2=2 (注入星数到 Levels.stars，逗号分隔)
+//   ?nofx=1            (禁用 CSS 动画/过渡，截图友好)
+//   ?settle=ms         (执行后再等多少毫秒；默认 0；complete 默认 1500)
+(function(){
+    const q = new URLSearchParams(location.search);
+
+    function unlockAll(){
+        for (let c = 0; c < Levels.data.length; c++) {
+            for (let l = 0; l < Levels.data[c].length; l++) {
+                Levels.completed.add(c+'-'+l);
+            }
+        }
+    }
+    function silenceAudio(){
+        try {
+            ['playClick','playFold','playComplete','playStep','startBGM','stopBGM']
+                .forEach(k => { if (Audio && Audio[k]) Audio[k] = ()=>{}; });
+        } catch(e){}
+    }
+    function suppressTutorial(){
+        if (window.Tutorial) Tutorial.shouldShow = ()=>false;
+    }
+    function applyNofx(){
+        // 关掉所有 CSS 动画/过渡，让截图直接呈现"动画结束态"
+        const s = document.getElementById('nofx-style');
+        s.textContent = `
+            *, *::before, *::after {
+                animation-duration: 0s !important;
+                animation-delay: 0s !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0s !important;
+                transition-delay: 0s !important;
+            }
+            #complete-stars .star { opacity: 1 !important; transform: none !important; }
+            .screen { transition: none !important; }
+        `;
+    }
+    function applyFullScroll(){
+        const s = document.createElement('style');
+        s.textContent = `
+            #game-container {
+                width: 100% !important; height: auto !important;
+                max-width: none !important; max-height: none !important;
+                aspect-ratio: auto !important; overflow: visible !important;
+            }
+            #ui-layer { position: relative !important; height: auto !important; }
+            .screen { position: relative !important; height: auto !important; }
+            #chapter-screen.train-mode #chapter-list {
+                max-height: none !important;
+                overflow: visible !important;
+            }
+        `;
+        document.head.appendChild(s);
+    }
+
+    function go(){
+        silenceAudio();
+        if (q.get('nofx') === '1') applyNofx();
+        if (q.get('fullscroll') === '1') applyFullScroll();
+        const screen = q.get('screen');
+        const lvl = q.get('level');
+        const story = q.get('story');
+        const complete = q.get('complete');
+
+        if (q.get('unlock') === '1') unlockAll();
+
+        const starsParam = q.get('stars');
+        if (starsParam) {
+            starsParam.split(',').forEach(pair => {
+                const m = pair.trim().match(/^(\d+)-(\d+)=(\d)$/);
+                if (m) {
+                    const c = +m[1] - 1, l = +m[2] - 1, n = +m[3];
+                    Levels.stars[`${c}-${l}`] = n;
+                    if (n > 0) Levels.completed.add(`${c}-${l}`);
+                }
+            });
+        }
+
+        if (complete) {
+            const [c,l] = complete.split('-').map(Number);
+            Levels.currentChapter = c-1; Levels.currentLevel = l-1;
+            suppressTutorial();
+            Game.startLevel();
+            setTimeout(() => Game.onLevelComplete(), 50);
+            return;
+        }
+        if (lvl) {
+            const [c,l] = lvl.split('-').map(Number);
+            Levels.currentChapter = c-1; Levels.currentLevel = l-1;
+            if (q.get('tut') !== '1') suppressTutorial();
+            if (story) { Game.showStory(story); return; }
+            Game.startLevel();
+            return;
+        }
+        if (screen === 'chapter') {
+            unlockAll();
+            UI.showChapterSelect();
+            return;
+        }
+        if (screen === 'story') {
+            Game.showStory(q.get('story') || 'intro');
+            return;
+        }
+        // 默认 menu，不动
+    }
+
+    // Game.init 在 window load 里跑，等它跑完
+    window.addEventListener('load', () => setTimeout(go, 50));
+})();
+</script>
+</body></html>

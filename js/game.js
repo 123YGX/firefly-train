@@ -191,7 +191,6 @@ const Game = {
         this.levelComplete = true;
         this.state = 'complete';
         Audio.playComplete();
-        Levels.markCurrentComplete();
 
         const end = Grid.findEnd();
         const px = Grid.offsetX + end.x * Grid.TILE_SIZE + Grid.TILE_SIZE / 2;
@@ -207,6 +206,8 @@ const Game = {
         if (folds <= par) stars = 3;
         else if (folds <= par + 1) stars = 2;
         else if (folds <= par + 2) stars = 1;
+
+        Levels.markCurrentComplete(stars);
 
         document.getElementById('complete-title').textContent = '过关！';
         const starsEl = document.getElementById('complete-stars');

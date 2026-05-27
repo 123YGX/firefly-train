@@ -4,12 +4,24 @@ const fs = require('fs');
 const https = require('https');
 const path = require('path');
 
-const KEY = 'sk-mzUFOloKzlIEhePZiwx2ODRQKqUbE8DIosO6rIirr1RDadOg';
+function loadEnv() {
+  const envPath = path.resolve(__dirname, '..', '.env');
+  if (!fs.existsSync(envPath)) return {};
+  const out = {};
+  for (const line of fs.readFileSync(envPath, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (m) out[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
+  }
+  return out;
+}
+const env = loadEnv();
+const KEY = env.VECTORENGINE_API_KEY || process.env.VECTORENGINE_API_KEY;
 const HOST = 'api.vectorengine.cn';
+if (!KEY) { console.error('[gen] missing VECTORENGINE_API_KEY in .env'); process.exit(1); }
 
-const [model, size, outPath, promptFile] = process.argv.slice(2);
+const [model, size, outPath, promptFile, extrasJson] = process.argv.slice(2);
 if (!model || !size || !outPath || !promptFile) {
-  console.error('usage: node tools/gen-image.js <model> <size> <output-path> <prompt-file>');
+  console.error('usage: node tools/gen-image.js <model> <size> <output-path> <prompt-file> [extras-json]');
   process.exit(1);
 }
 
@@ -17,13 +29,18 @@ const prompt = fs.readFileSync(promptFile, 'utf8').trim();
 console.log('[gen] model:', model, 'size:', size);
 console.log('[gen] prompt length:', prompt.length);
 
-const body = JSON.stringify({
+const baseBody = {
   model,
   prompt,
   size,
   n: 1,
   response_format: 'url'
-});
+};
+if (extrasJson) {
+  try { Object.assign(baseBody, JSON.parse(extrasJson)); }
+  catch (e) { console.error('[gen] invalid extras JSON:', e.message); process.exit(1); }
+}
+const body = JSON.stringify(baseBody);
 
 const req = https.request({
   host: HOST,

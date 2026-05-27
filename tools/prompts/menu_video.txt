@@ -1,0 +1,29 @@
+A 6-second seamlessly looping cinematic background animation, 16:9 horizontal composition, painted storybook illustration style (Studio Ghibli + Chinese picture book aesthetic, NOT photorealistic, NOT anime, NOT 3D).
+
+Scene: a vintage dark-green diesel locomotive winding slowly along a single railway track from the background-center toward the lower-left foreground. Multiple passenger cars trail behind. The train moves at a gentle, slow pace — visible motion but unhurried. Its bright warm-yellow headlight glows at the camera, softly pulsing. White steam puffs rise rhythmically from the chimney and drift up-right into the dusk air.
+
+Background:
+- Tall snow-capped mountains in soft purple-blue silhouette, almost still
+- Pine forest hillsides on both sides of the track, dark teal-green
+- A small winding stream on the right gently reflecting the sky
+- Foreground: lush green meadow with tall grass swaying very subtly in a light breeze
+- Countless small yellow-green fireflies drifting and blinking, especially in the lower-third meadow
+
+Sky and light:
+- Dusk transition: warm peach-orange behind the mountains fading up to deep cool dusk-purple at the top
+- A few soft pink-violet clouds slowly drifting from right to left across the upper sky
+- Faint magical green aurora-like wisps slowly undulating in the upper sky
+- Magic-hour just-after-sunset feel, warm and inviting yet cool enough for fireflies to glow
+
+Loop requirement (CRITICAL): the first frame and the last frame must match perfectly so the video can loop seamlessly. Camera is static, no zoom, no pan, no shake. Only the elements within the scene move (train, smoke, clouds, fireflies, grass, aurora). Train returns to same position by loop end OR train motion is so subtle it appears to barely advance.
+
+Color palette:
+- Sky peach #ffc998 to dusk purple #4a3a6e
+- Forest deep teal-green #2d4a3e
+- Meadow grass green #6db66e
+- Train body classic dark green #2d4a3e with red trim and lit warm-yellow windows
+- Headlight warm amber #ffd97d
+- Fireflies yellow-green #c8ff7d
+- Mountains lavender-blue #8b8eaa with white snow
+
+NO text, NO logos, NO UI, NO human figures, NO animals.
