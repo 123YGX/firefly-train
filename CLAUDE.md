@@ -62,56 +62,41 @@ Front contains the visible grid (START, END, initial PATH segments, WALL). Back 
 
 ## 当前进行中方案
 
-### UI 改造（任务 #3，已完成第一阶段）
+### UI 风格统一：暖色水彩 + 奶油纸票（2026-05-27 落地）
 
-**目标**：把章节选择 + 主菜单改成"火车票"视觉样式，配色采用"夜行萤火"。
+**目标**：主菜单和选关页统一到"暖色水彩绘本 + 奶油纸车票"。之前主菜单是温暖水彩，选关页是深蓝"夜行萤火"，两套风格脱节，本次推平。
 
-**已完成（2026-05-26）：**
+**配色（暖色奶油纸票）：**
+- 票面 bg `#f4ead0`（奶油）→ hover `#fff5d7`，已通关 `#ead8a8`，锁定 `#b8a888`
+- 票面边 `#c8a868`（金边），笔触/虚线 `rgba(120,80,30,*)`
+- 主文字 `#3d2817`（深棕）/ 副 `#6b4a1f` / 站台标题 `#ffd97d`（金）
+- 强调：车次号 `#b8541a`（橘红）/ 已通关印章 `#b8331a` / 检票印章 `#2d6e3a`（绿）/ 锁 `#8a7560`
+- 萤火粒子 `#fff4c8` 暖光（原来是冷绿）
 
-✅ **配色（夜行萤火）已落地**
-- 底色 `#0a1628` / 容器 `#0f1f3a`
-- 主光 `#a8e6cf`（萤火冷绿）/ 次 `#7dd3a0`
-- 文字 `#e8f4ea` / `#6b8a7f`
-- 暖点缀 `#ffd97d`（车次号 / 印章）
+**资源：**
+- `assets/backgrounds/menu_bg_landscape.jpg` — 主菜单水彩日暮草原 + 绿火车（豆包水印被 logo 遮挡）
+- `assets/decor/menu_logo.png` — 用户手扣透明背景的金色"萤火与列车"艺术字
+- `assets/backgrounds/chapter_bg_station.jpg` — 选关页同风格水彩，小站台 + 灯笼 + 绿火车 + 雪山日落（doubao-seedream-4-5-251128 生成，无水印）
 
-✅ **章节选择 → 站台牌 + 车票网格**（`js/ui.js` `showChapterSelect`）
-- 每章一张"站台牌"（DAY 0X 印章式编号、章节名、路线 from→to、里程）
-- 每关一张车票 (.train-ticket)：左联（车次号 + 车种 + par 折数）/ 撕裂虚线 + 半圆缺口 / 右联（路线 + 剧情 snippet + 星级 + 条码 + 检票印章）
-- 状态：`locked`（候车中/灰）、`unlocked`（检票中/绿光闪烁）、`completed`（已检票/红章倾斜）
-- hover 萤火粒子飘动 + 票面悬浮上抬
-- 点击触发撕票动画（`tear-off` 关键帧 480ms）→ 进入剧情
+**CSS 关键位置（`css/style.css`）：**
+- L96-105 `.menu-logo` 基础尺寸 / 浮动动画
+- L710-730 `#chapter-screen.train-mode` 用 chapter_bg_station.jpg + 渐变遮罩
+- L820-1080 `.train-mode .train-ticket` 全套奶油纸票配色
+- L1140-1318 `#menu-screen.train-mode` 主菜单（logo `margin-top: -260px`，subtitle 隐藏）
+- L1320-1395 menu-btn 改奶油纸票形
 
-✅ **主菜单 → 站台风格按钮**（`#menu-screen.train-mode`）
-- 标题加 ◆ 萤火点缀
-- 按钮改成"票根"形（左侧撕裂虚线 + 半圆缺口 + 暖黄菱形装饰）
-- 副标题字体改成等宽（时刻表风格）
+**章节路线表**（`js/ui.js _chapterRoutes`）：
+- ch0 G 大学站→江北 0km / ch1 D 江北→解放碑 38km / ch2 K 解放碑→朝天门 12km
+- ch3 T 朝天门→三峡 410km / ch4 Z 秦岭→北方原野 1280km / ch5 S 大连→家 8km
 
-✅ **章节路线表**（`js/ui.js _chapterRoutes`，索引对应六章）
-- ch0 G 大学站→江北 0km
-- ch1 D 江北→解放碑 38km
-- ch2 K 解放碑→朝天门 12km
-- ch3 T 朝天门→三峡 410km
-- ch4 Z 秦岭→北方原野 1280km
-- ch5 S 大连→家 8km
+**已知遗留：**
+- `js/ui.js:_processMenuLogo` 洪水填充版抠图保留着，新 logo 不带 `data-chroma-key` 不会触发，留着备用
+- 主菜单 bg 右下角有豆包水印，被 logo 遮住；窗口放大或换分辨率可能露
+- 老的 `.chapter-block` / `.level-btn` CSS（line 297-437）已不再使用但保留，便于回滚
 
-✅ **测试**：通过 `tools/shoot.sh` headless 截图验证（`screen=chapter&unlock=1` 显示三章九票布局正确，已检票/检票中状态切换正常）。
-
-✅ **真机浏览器实测（2026-05-26）**：三状态视觉 / hover+撕票动画 / 剧情进出回路 / 滚动条 全部通过。修过三处：
-- 主菜单 hover 长虚线：`css/style.css` train-mode `.menu-btn:hover::before` 加 `height: auto`，否则基础规则的 `height:300px` 把 `border-left` 伪元素拉出按钮 300px
-- `js/effects.js` ch2-ch6 变体 PNG 共 25 个 404：用 `tileVariants` 表显式声明哪章有变体（当前只 ch1）
-- `index.html` 加内联 SVG favicon，消 favicon.ico 404
-
-**保留作未来选项（暂不做）：**
-- 票面纸纹理底图（生图 API）— 当前程序化纹理已够用
-- 主菜单"开始旅程"按钮的撕票飞走动画 — 票根按钮只做了 hover/active，进入剧情用 transition-overlay 已有的 fadeout
-- 星级评分实现 — `Levels` 暂不存星数，当前以 completed/uncompleted 一刀切显示三星或三空
-
-**已知小问题：**
-- 章节列表在 1400x900 容器中只能一屏看到 3 章，需要滚动看 4-6 章。这是 18 张票的天然量，不算 bug。
-- 老的 `.chapter-block` / `.level-btn` CSS（line 297-437）已不再使用但保留，便于回滚或非 train-mode 场景。
-
-**下一步建议（等用户决定）：**
-- 加引导提示（首次进入选关屏闪烁第一张可玩票）
-- 主菜单可加铁轨流光背景动画
-- 把章节卡片背景做成"对应站台外景"的 SVG 缩略图（夜雨重庆 / 三峡 / 雪原 / 海岸等）
+**backlog（按优先级）：**
+1. ~~星级评分真正落库~~ ✅（`Levels.stars` + `ft_stars` localStorage，`game.js` 通关时按 folds vs par 存星，`ui.js` 按真实星数渲染）
+2. ~~章节段缩略图 SVG~~ ✅（`ui.js _chapterSceneSVG` 6 章程序化剪影横幅，480x64 viewBox，站台牌顶部渲染，锁定章灰显）
+3. 首次进入选关屏闪烁第一张可玩票（引导）
+4. 主菜单铁轨流光背景动画
 

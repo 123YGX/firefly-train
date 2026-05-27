@@ -18,6 +18,7 @@ const UI = {
         if (this.screens.menu) this._initMenuFireflies(this.screens.menu);
         if (this.screens.menu) this._processMenuLogo(this.screens.menu);
         if (this.screens.menu) this._processMenuBg();
+        this._processTicketAsset();
 
         document.getElementById('btn-start').addEventListener('click', () => {
             Audio.playClick();
@@ -191,11 +192,268 @@ const UI = {
         } catch (e) { return ''; }
     },
 
-    _ticketStarsHTML(completed) {
-        if (completed) {
-            return '<span class="stars">★ ★ ★</span>';
+    _chapterSceneSVG(chIdx) {
+        // 480x64 横幅，作为站台牌外景。统一暖色剪影 + 朦胧晕染。
+        const scenes = [
+            // ch0 大学站 → 江北：校园门楼 + 银杏 + 月牙
+            `<defs><linearGradient id="sky0" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#5a3d6b"/><stop offset="1" stop-color="#c98a6d"/></linearGradient></defs>
+             <rect width="480" height="64" fill="url(#sky0)"/>
+             <circle cx="80" cy="20" r="9" fill="#fff4c8" opacity="0.85"/>
+             <circle cx="76" cy="18" r="7.5" fill="#5a3d6b"/>
+             <g fill="#1f1322">
+               <path d="M0 50 L60 38 L120 44 L180 36 L240 42 L320 34 L400 40 L480 32 L480 64 L0 64 Z"/>
+               <rect x="200" y="34" width="56" height="22"/>
+               <polygon points="194,34 262,34 228,24"/>
+               <rect x="218" y="40" width="6" height="16" fill="#ffd97d" opacity="0.55"/>
+               <rect x="232" y="40" width="6" height="16" fill="#ffd97d" opacity="0.55"/>
+             </g>
+             <g fill="#2a1a1f"><circle cx="380" cy="42" r="8"/><circle cx="392" cy="38" r="9"/><circle cx="404" cy="44" r="7"/><rect x="395" y="44" width="2" height="12"/></g>
+             <g fill="#2a1a1f"><circle cx="60" cy="44" r="7"/><circle cx="72" cy="40" r="8"/><circle cx="84" cy="46" r="6"/><rect x="74" y="46" width="2" height="10"/></g>`,
+
+            // ch1 江北 → 解放碑：山城夜景，多层建筑 + 灯火
+            `<defs><linearGradient id="sky1" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#3a2545"/><stop offset="1" stop-color="#a85540"/></linearGradient></defs>
+             <rect width="480" height="64" fill="url(#sky1)"/>
+             <g fill="#181018" opacity="0.85">
+               <polygon points="0,48 40,40 80,44 120,30 160,38 200,28 240,34 280,22 320,30 360,26 400,32 440,28 480,36 480,64 0,64"/>
+             </g>
+             <g fill="#0d0810">
+               <rect x="40" y="32" width="14" height="32"/>
+               <rect x="80" y="24" width="10" height="40"/>
+               <rect x="120" y="18" width="16" height="46"/>
+               <rect x="160" y="26" width="12" height="38"/>
+               <rect x="210" y="14" width="22" height="50"/>
+               <rect x="260" y="22" width="12" height="42"/>
+               <rect x="290" y="28" width="14" height="36"/>
+               <rect x="330" y="20" width="10" height="44"/>
+               <rect x="370" y="26" width="18" height="38"/>
+               <rect x="410" y="22" width="12" height="42"/>
+               <rect x="438" y="30" width="14" height="34"/>
+             </g>
+             <g fill="#ffd97d">
+               <rect x="44" y="38" width="2" height="2"/><rect x="48" y="44" width="2" height="2"/>
+               <rect x="84" y="32" width="2" height="2"/><rect x="84" y="40" width="2" height="2"/>
+               <rect x="124" y="26" width="2" height="2"/><rect x="128" y="34" width="2" height="2"/><rect x="124" y="42" width="2" height="2"/>
+               <rect x="164" y="34" width="2" height="2"/><rect x="166" y="44" width="2" height="2"/>
+               <rect x="216" y="22" width="2" height="2"/><rect x="222" y="30" width="2" height="2"/><rect x="216" y="40" width="2" height="2"/><rect x="224" y="48" width="2" height="2"/>
+               <rect x="264" y="30" width="2" height="2"/><rect x="266" y="42" width="2" height="2"/>
+               <rect x="294" y="36" width="2" height="2"/><rect x="298" y="46" width="2" height="2"/>
+               <rect x="332" y="28" width="2" height="2"/><rect x="334" y="42" width="2" height="2"/><rect x="332" y="52" width="2" height="2"/>
+               <rect x="374" y="34" width="2" height="2"/><rect x="382" y="44" width="2" height="2"/>
+               <rect x="412" y="30" width="2" height="2"/><rect x="416" y="42" width="2" height="2"/>
+               <rect x="442" y="38" width="2" height="2"/><rect x="446" y="48" width="2" height="2"/>
+             </g>`,
+
+            // ch2 解放碑 → 朝天门：两江汇流 + 渡船
+            `<defs><linearGradient id="sky2" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#6a4878"/><stop offset="1" stop-color="#e0a070"/></linearGradient>
+              <linearGradient id="water2" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#7a5040"/><stop offset="1" stop-color="#3a2030"/></linearGradient></defs>
+             <rect width="480" height="64" fill="url(#sky2)"/>
+             <path d="M0 38 L60 32 L140 36 L220 28 L300 34 L380 30 L480 36 L480 64 L0 64 Z" fill="#2a1a28"/>
+             <path d="M0 44 L240 40 L480 46 L480 64 L0 64 Z" fill="url(#water2)"/>
+             <path d="M180 44 Q240 36 300 44 L300 50 Q240 42 180 50 Z" fill="#1a0e1a" opacity="0.7"/>
+             <g fill="#1a0e14">
+               <rect x="232" y="46" width="22" height="5"/>
+               <polygon points="232,46 254,46 250,42 236,42"/>
+               <rect x="241" y="38" width="2" height="6"/>
+             </g>
+             <g fill="#ffd97d" opacity="0.7"><circle cx="240" cy="40" r="1.2"/></g>
+             <g fill="#ffd97d" opacity="0.5">
+               <rect x="60" y="46" width="3" height="1"/><rect x="120" y="48" width="3" height="1"/>
+               <rect x="340" y="46" width="3" height="1"/><rect x="400" y="48" width="3" height="1"/>
+             </g>`,
+
+            // ch3 朝天门 → 三峡：高山峡谷 + 一叶扁舟
+            `<defs><linearGradient id="sky3" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#4a3050"/><stop offset="1" stop-color="#d8956a"/></linearGradient>
+              <linearGradient id="water3" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#8a5a3a"/><stop offset="1" stop-color="#3a2018"/></linearGradient></defs>
+             <rect width="480" height="64" fill="url(#sky3)"/>
+             <polygon points="0,42 60,12 120,30 180,8 240,28 300,10 360,32 420,14 480,30 480,64 0,64" fill="#231425"/>
+             <polygon points="20,44 80,22 140,36 200,18 260,32 320,16 380,34 440,20 480,38 480,64 0,64" fill="#3a1f2c" opacity="0.8"/>
+             <path d="M0 50 L480 50 L480 64 L0 64 Z" fill="url(#water3)"/>
+             <g fill="#1a0e10">
+               <path d="M220 54 Q240 50 260 54 L256 56 L224 56 Z"/>
+               <rect x="238" y="46" width="1.5" height="8"/>
+               <polygon points="240,46 248,52 240,52" fill="#5a3a28"/>
+             </g>
+             <g fill="#fff4c8" opacity="0.4">
+               <rect x="100" y="52" width="6" height="1"/>
+               <rect x="180" y="54" width="8" height="1"/>
+               <rect x="320" y="52" width="6" height="1"/>
+               <rect x="400" y="54" width="10" height="1"/>
+             </g>`,
+
+            // ch4 秦岭 → 北方原野：雪山 + 麦田 + 孤树
+            `<defs><linearGradient id="sky4" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#5a4070"/><stop offset="1" stop-color="#e8b890"/></linearGradient>
+              <linearGradient id="field4" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#c8924a"/><stop offset="1" stop-color="#6a4220"/></linearGradient></defs>
+             <rect width="480" height="64" fill="url(#sky4)"/>
+             <polygon points="0,38 60,16 130,30 200,8 280,26 360,12 440,28 480,18 480,64 0,64" fill="#3a3548"/>
+             <polygon points="50,30 130,30 90,12" fill="#f4ead0"/>
+             <polygon points="240,28 320,26 280,4" fill="#f4ead0"/>
+             <polygon points="400,28 480,18 460,8 440,16" fill="#f4ead0" opacity="0.85"/>
+             <path d="M0 44 L480 42 L480 64 L0 64 Z" fill="url(#field4)"/>
+             <g stroke="#3a2010" stroke-width="0.6" opacity="0.55">
+               <path d="M10 48 Q50 46 90 50 T180 48 T280 50 T380 48 T470 50"/>
+               <path d="M0 54 Q60 52 120 56 T240 54 T360 56 T480 54"/>
+             </g>
+             <g fill="#1a0e08">
+               <rect x="356" y="38" width="2" height="14"/>
+               <circle cx="357" cy="36" r="6"/>
+             </g>`,
+
+            // ch5 大连 → 家：海岸 + 灯塔 + 海浪
+            `<defs><linearGradient id="sky5" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#3a4870"/><stop offset="1" stop-color="#f0c890"/></linearGradient>
+              <linearGradient id="sea5" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#5a7088"/><stop offset="1" stop-color="#1a2438"/></linearGradient></defs>
+             <rect width="480" height="64" fill="url(#sky5)"/>
+             <circle cx="380" cy="22" r="11" fill="#ffd97d" opacity="0.85"/>
+             <circle cx="380" cy="22" r="20" fill="#ffd97d" opacity="0.18"/>
+             <path d="M0 36 L480 36 L480 64 L0 64 Z" fill="url(#sea5)"/>
+             <g stroke="#fff4c8" stroke-width="0.6" opacity="0.55" fill="none">
+               <path d="M10 42 Q40 40 70 42 T130 42 T200 42 T280 42 T360 42 T460 42"/>
+               <path d="M0 50 Q50 48 100 50 T200 50 T300 50 T400 50 T480 50"/>
+               <path d="M20 56 Q60 54 110 56 T220 56 T340 56 T470 56"/>
+             </g>
+             <g fill="#1a0e14">
+               <rect x="78" y="20" width="6" height="16"/>
+               <polygon points="76,20 86,20 81,12"/>
+               <rect x="74" y="36" width="14" height="4"/>
+             </g>
+             <rect x="79" y="14" width="4" height="4" fill="#ffd97d"/>
+             <rect x="73" y="15" width="16" height="2" fill="#ffd97d" opacity="0.35"/>`
+        ];
+        const inner = scenes[chIdx] || scenes[0];
+        return `<svg class="platform-scene" viewBox="0 0 480 64" preserveAspectRatio="none" aria-hidden="true">${inner}</svg>`;
+    },
+
+    _ticketStarsHTML(completed, stars) {
+        const n = Math.max(0, Math.min(3, stars | 0));
+        if (!completed && n === 0) {
+            return '<span class="stars"><span class="empty">☆</span> <span class="empty">☆</span> <span class="empty">☆</span></span>';
         }
-        return '<span class="stars"><span class="empty">☆</span> <span class="empty">☆</span> <span class="empty">☆</span></span>';
+        let html = '<span class="stars">';
+        for (let i = 0; i < 3; i++) {
+            html += i < n
+                ? '★'
+                : ' <span class="empty">☆</span>';
+        }
+        html += '</span>';
+        return html;
+    },
+
+    _processTicketAsset() {
+        const url = 'assets/decor/ticket_raw.jpg';
+        const src = new Image();
+        src.crossOrigin = 'anonymous';
+        src.onload = () => {
+            try {
+                const MAX_W = 1024;
+                const sw = src.naturalWidth, sh = src.naturalHeight;
+                const scale = Math.min(1, MAX_W / sw);
+                const W = Math.round(sw * scale), H = Math.round(sh * scale);
+                const canvas = document.createElement('canvas');
+                canvas.width = W; canvas.height = H;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(src, 0, 0, W, H);
+                const data = ctx.getImageData(0, 0, W, H);
+                const px = data.data;
+                const isBg = (idx) => {
+                    const r = px[idx], g = px[idx+1], b = px[idx+2];
+                    const cmin = r < g ? (r < b ? r : b) : (g < b ? g : b);
+                    const cmax = r > g ? (r > b ? r : b) : (g > b ? g : b);
+                    return cmin >= 225 && (cmax - cmin) <= 18;
+                };
+                const visited = new Uint8Array(W * H);
+                const stack = [];
+                for (let x = 0; x < W; x++) {
+                    const top = x, bot = (H - 1) * W + x;
+                    if (isBg(top * 4)) { visited[top] = 1; stack.push(top); }
+                    if (isBg(bot * 4)) { visited[bot] = 1; stack.push(bot); }
+                }
+                for (let y = 0; y < H; y++) {
+                    const left = y * W, right = y * W + (W - 1);
+                    if (isBg(left * 4)) { visited[left] = 1; stack.push(left); }
+                    if (isBg(right * 4)) { visited[right] = 1; stack.push(right); }
+                }
+                while (stack.length) {
+                    const p = stack.pop();
+                    const x = p % W, y = (p - x) / W;
+                    if (x > 0)   { const n = p - 1; if (!visited[n] && isBg(n*4)) { visited[n] = 1; stack.push(n); } }
+                    if (x < W-1) { const n = p + 1; if (!visited[n] && isBg(n*4)) { visited[n] = 1; stack.push(n); } }
+                    if (y > 0)   { const n = p - W; if (!visited[n] && isBg(n*4)) { visited[n] = 1; stack.push(n); } }
+                    if (y < H-1) { const n = p + W; if (!visited[n] && isBg(n*4)) { visited[n] = 1; stack.push(n); } }
+                }
+                for (let p = 0; p < W * H; p++) {
+                    if (visited[p]) px[p * 4 + 3] = 0;
+                }
+                const alphaCopy = new Uint8Array(W * H);
+                for (let p = 0; p < W * H; p++) alphaCopy[p] = px[p * 4 + 3];
+                for (let y = 1; y < H - 1; y++) {
+                    for (let x = 1; x < W - 1; x++) {
+                        const p = y * W + x;
+                        if (alphaCopy[p] === 0) continue;
+                        const i = p * 4;
+                        const r = px[i], g = px[i+1], b = px[i+2];
+                        const cmin = r < g ? (r < b ? r : b) : (g < b ? g : b);
+                        if (cmin < 200) continue;
+                        const hasTransparentNeighbor =
+                            alphaCopy[p-1] === 0 || alphaCopy[p+1] === 0 ||
+                            alphaCopy[p-W] === 0 || alphaCopy[p+W] === 0;
+                        if (hasTransparentNeighbor) {
+                            const t = 1 - Math.min(1, (cmin - 200) / 40);
+                            px[i+3] = Math.round(alphaCopy[p] * t);
+                        }
+                    }
+                }
+                ctx.putImageData(data, 0, 0);
+
+                // 裁剪到非透明像素的紧致 bbox（去掉车票四周空白），让 background:contain 后车票贴满按钮
+                let minX = W, minY = H, maxX = -1, maxY = -1;
+                for (let y = 0; y < H; y++) {
+                    for (let x = 0; x < W; x++) {
+                        if (px[(y * W + x) * 4 + 3] > 8) {
+                            if (x < minX) minX = x;
+                            if (x > maxX) maxX = x;
+                            if (y < minY) minY = y;
+                            if (y > maxY) maxY = y;
+                        }
+                    }
+                }
+                let outCanvas = canvas;
+                let outW = W, outH = H;
+                if (maxX >= minX && maxY >= minY) {
+                    const PAD = 2;
+                    minX = Math.max(0, minX - PAD);
+                    minY = Math.max(0, minY - PAD);
+                    maxX = Math.min(W - 1, maxX + PAD);
+                    maxY = Math.min(H - 1, maxY + PAD);
+                    outW = maxX - minX + 1;
+                    outH = maxY - minY + 1;
+                    const cropped = document.createElement('canvas');
+                    cropped.width = outW; cropped.height = outH;
+                    cropped.getContext('2d').drawImage(canvas, minX, minY, outW, outH, 0, 0, outW, outH);
+                    outCanvas = cropped;
+                }
+
+                outCanvas.toBlob((blob) => {
+                    if (!blob) return;
+                    const url = URL.createObjectURL(blob);
+                    document.documentElement.style.setProperty('--ticket-bg', `url(${url})`);
+                    document.documentElement.style.setProperty('--ticket-aspect', (outW / outH).toFixed(3));
+                    document.documentElement.classList.add('ticket-ready');
+                }, 'image/png');
+            } catch (e) {
+                console.warn('[menu] ticket asset chroma-key failed:', e);
+            }
+        };
+        src.onerror = () => console.warn('[menu] ticket_raw.jpg load failed');
+        src.src = url;
     },
 
     _loadMenuTrain(host) {
@@ -494,6 +752,26 @@ const UI = {
             if (h2) h2.insertAdjacentElement('afterend', sub);
         }
 
+        // 章节背景层：每章一张，悬停时淡入
+        let bgLayers = screen.querySelectorAll('.chapter-bg-layer');
+        if (bgLayers.length !== Story.chapters.length) {
+            screen.querySelectorAll('.chapter-bg-layer').forEach(el => el.remove());
+            Story.chapters.forEach((_, idx) => {
+                const layer = document.createElement('div');
+                layer.className = 'chapter-bg-layer';
+                layer.dataset.ch = idx;
+                layer.style.backgroundImage = `url('assets/backgrounds/chapter_bg_ch${idx + 1}.png')`;
+                screen.insertBefore(layer, screen.firstChild);
+            });
+            bgLayers = screen.querySelectorAll('.chapter-bg-layer');
+        }
+        const activateBg = (idx) => {
+            bgLayers.forEach(l => l.classList.toggle('active', +l.dataset.ch === idx));
+        };
+        const resetBg = () => {
+            bgLayers.forEach(l => l.classList.remove('active'));
+        };
+
         const showFirstHint = !localStorage.getItem('ft_hint_seen');
         let firstHintTarget = null;
 
@@ -505,6 +783,7 @@ const UI = {
             const sign = document.createElement('div');
             sign.className = 'platform-sign' + (chUnlocked ? '' : ' locked');
             sign.innerHTML = `
+                ${this._chapterSceneSVG(chIdx)}
                 <div class="platform-name">
                     <span class="ch-num">DAY ${String(chIdx + 1).padStart(2, '0')}</span>
                     <span class="ch-name">${ch.name}</span>
@@ -516,6 +795,14 @@ const UI = {
             // 车票排
             const row = document.createElement('div');
             row.className = 'ticket-row';
+
+            // 章节段（站台牌 + 车票排）整体 hover 切换背景
+            const onEnter = () => activateBg(chIdx);
+            sign.addEventListener('mouseenter', onEnter);
+            row.addEventListener('mouseenter', onEnter);
+            sign.addEventListener('mouseleave', resetBg);
+            row.addEventListener('mouseleave', resetBg);
+
             const levelCount = Levels.data[chIdx].length;
 
             for (let lvIdx = 0; lvIdx < levelCount; lvIdx++) {
@@ -554,7 +841,7 @@ const UI = {
                             <span>${chIdx + 1}-${lvIdx + 1}</span>
                         </div>
                         <div class="ticket-snippet">${unlocked ? this._ticketSnippet(chIdx, lvIdx) : '尚未解锁'}</div>
-                        ${unlocked ? this._ticketStarsHTML(completed) : ''}
+                        ${unlocked ? this._ticketStarsHTML(completed, Levels.getStars(chIdx, lvIdx)) : ''}
                         <div class="barcode"></div>
                     </div>
                 `;
