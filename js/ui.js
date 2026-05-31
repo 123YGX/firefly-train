@@ -17,7 +17,7 @@ const UI = {
 
         if (this.screens.menu) this._initMenuFireflies(this.screens.menu);
         if (this.screens.menu) this._processMenuLogo(this.screens.menu);
-        if (this.screens.menu) this._processMenuBg();
+        // _processMenuBg 已停用：bg 文件本身已无水印，运行时清除反而会用左侧草地覆盖右下角
         this._processTicketAsset();
 
         document.getElementById('btn-start').addEventListener('click', () => {
