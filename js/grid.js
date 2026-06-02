@@ -136,7 +136,7 @@ const Grid = {
             ctx.shadowColor = 'rgba(0,0,0,0.4)';
             ctx.shadowBlur = 24;
             ctx.shadowOffsetY = 6;
-            ctx.fillStyle = 'rgba(245,235,215,0.92)';
+            ctx.fillStyle = 'rgba(244,234,208,0.96)';
             this._roundRect(ctx, this.offsetX - pad, this.offsetY - pad, gridW + pad*2, gridH + pad*2, 8);
             ctx.fill();
             ctx.restore();
@@ -218,6 +218,23 @@ const Grid = {
                         }
 
                         ctx.restore();
+
+                        // 彩铅勾边：仅给可走格描手绘双线，路径连成"绘本里画的格子路"；墙/空不描
+                        if (tile !== this.WALL && tile !== this.EMPTY) {
+                            const jit = (Effects._getTileOffset(x, y).ox % 3) - 1; // 圆角抖动 ±1
+                            ctx.save();
+                            ctx.strokeStyle = 'rgba(120,80,30,0.55)';
+                            ctx.lineWidth = 1.6;
+                            ctx.beginPath();
+                            this._roundRect(ctx, px + 0.8, py + 0.8, tw - 1.6, th - 1.6, radius + jit);
+                            ctx.stroke();
+                            ctx.strokeStyle = 'rgba(120,80,30,0.22)';
+                            ctx.lineWidth = 1;
+                            ctx.beginPath();
+                            this._roundRect(ctx, px + 1.6, py + 1.6, tw - 1.6, th - 1.6, radius + jit);
+                            ctx.stroke();
+                            ctx.restore();
+                        }
                     }
                 } else if (tile === this.WALL || tile === this.EMPTY) {
                     const paperTex = this._getPaperTile();

@@ -260,13 +260,16 @@ body {
 }
 
 #hud-chapter, #hud-level {
-    color: #8899aa;
+    color: #6b4a1f;
     font-size: 13px;
+    text-shadow: 0 1px 2px rgba(255,245,220,0.6);
 }
 
 #hud-folds {
-    color: #ffb74d;
+    color: #b8541a;
     font-size: 13px;
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(255,245,220,0.6);
 }
 
 #complete-stars {
@@ -292,29 +295,45 @@ body {
     100% { opacity: 1; transform: scale(1) rotate(0deg); }
 }
 
+#hud-buttons {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    background: rgba(244, 234, 208, 0.82);
+    border: 1px solid #c8a868;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(60, 40, 20, 0.25);
+}
+
 .hud-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #ccc;
-    width: 32px;
-    height: 32px;
-    font-size: 16px;
+    background: rgba(255, 250, 232, 0.9);
+    border: 1px solid #c8a868;
+    color: #6b4a1f;
+    width: 34px;
+    height: 34px;
+    font-size: 17px;
     cursor: pointer;
-    border-radius: 4px;
-    margin-left: 6px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 7px;
+    margin-left: 0;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
 }
 
 .hud-btn:hover {
-    background: rgba(255, 255, 255, 0.25);
-    color: #fff;
-    transform: scale(1.1);
-    box-shadow: 0 2px 8px rgba(255, 255, 255, 0.2);
+    background: #ffd97d;
+    color: #3d2817;
+    border-color: #b8541a;
+    transform: translateY(-1px) scale(1.06);
+    box-shadow: 0 3px 8px rgba(184, 84, 26, 0.3);
 }
 
 .hud-btn:active {
-    transform: scale(0.95);
+    transform: scale(0.94);
 }
 
 /* Fold indicator */
@@ -608,7 +627,8 @@ body {
     position: absolute;
     bottom: 16px;
     left: 16px;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(244, 234, 208, 0.85);
+    border: 1px solid #c8a868;
     border-radius: 6px;
     padding: 8px 12px;
     pointer-events: none;
@@ -620,7 +640,7 @@ body {
 .legend-item {
     display: flex;
     align-items: center;
-    color: #ccc;
+    color: #3d2817;
     font-size: 11px;
     gap: 6px;
 }

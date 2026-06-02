@@ -257,30 +257,27 @@ const Game = {
     },
 
     drawBackground() {
-        const ch = Levels.currentChapter + 1;
-        const bgImg = Effects.images.backgrounds[`ch${ch}`];
-        if (Effects._isReady(bgImg)) {
-            this.ctx.drawImage(bgImg, 0, 0, 1400, 900);
-            return;
-        }
+        // 绘本风：不再用 AI 写实大图（需黑膜压暗才能让纸浮出，会弄脏全屏）。
+        // 始终走暖色日暮渐变 + 程序化彩铅远景。
         this.ctx.drawImage(this._getSceneBg(Levels.currentChapter), 0, 0);
     },
 
     _getSceneBg(chapter) {
         if (!this._bgCache.scene[chapter]) {
+            // 6 章暖色日暮渐变，呼应菜单奶油配色，靠色相区分地域
             const colors = [
-                ['#f5e6c8', '#e8d5a3'],
-                ['#e8c49a', '#d4a574'],
-                ['#c47a5a', '#6b3a5a'],
-                ['#2a4a6b', '#1a3a4a'],
-                ['#1a2a4a', '#0f1a3a'],
-                ['#2a1a4a', '#3a2a1a']
+                ['#f3e3c0', '#e9cfa0'], // ch0 大学站·暖台灯蜜色
+                ['#f0dcb4', '#e3c498'], // ch1 江北山城·雾青暖砂
+                ['#f6d6a8', '#e8a878'], // ch2 解放碑烟火·夕阳桃橘
+                ['#e9e0bc', '#cfd6b0'], // ch3 朝天门→三峡·青绿水汽（仍暖）
+                ['#ecdcc0', '#d8c8a8'], // ch4 秦岭北方原野·灰土暖khaki
+                ['#f7d4a4', '#e9b890']  // ch5 大连海岸归途·珊瑚暖
             ];
             const [c1, c2] = colors[chapter] || colors[0];
             const c = document.createElement('canvas');
             c.width = 1400; c.height = 900;
             const cx = c.getContext('2d');
-            const g = cx.createLinearGradient(0, 0, 1400, 900);
+            const g = cx.createLinearGradient(0, 0, 0, 900);
             g.addColorStop(0, c1);
             g.addColorStop(1, c2);
             cx.fillStyle = g;
@@ -335,15 +332,8 @@ const Game = {
             this.drawMenuBackground();
         } else if (this.state === 'playing' || this.state === 'complete') {
             this.drawBackground();
-            const bgReady = Effects._isReady(Effects.images.backgrounds[`ch${Levels.currentChapter + 1}`]);
-            if (bgReady) {
-                this.ctx.save();
-                this.ctx.fillStyle = 'rgba(0,0,0,0.2)';
-                this.ctx.fillRect(0, 0, 1400, 900);
-                this.ctx.restore();
-            } else {
-                Effects.drawSceneEnvironment(this.ctx, Levels.currentChapter);
-            }
+            // 绘本风：背景已是暖渐变，无需黑遮罩，始终绘制程序化彩铅远景
+            Effects.drawSceneEnvironment(this.ctx, Levels.currentChapter);
             Effects.updateBgFireflies();
             Effects.drawBgFireflies(this.ctx);
             Grid.draw(this.ctx);

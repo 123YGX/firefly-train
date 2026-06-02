@@ -1,3 +1,21 @@
+// 全局绘本配色锚点（菜单/选关「奶油纸票」同一套），各处统一引用，避免同色在不同函数里漂移
+const PALETTE = {
+    paper:    '#f4ead0', // 奶油纸底
+    paperHi:  '#fff5d7', // 纸面提亮
+    gold:     '#ffd97d', // 暖金强调
+    ink:      '#3d2817', // 深棕墨字
+    edge:     '#c8a868', // 金边
+    stroke:   '120,80,30', // 彩铅笔触/描边 RGB（配 rgba 用）
+    stamp:    '#c2392f', // 起点印章红
+    endGold:  '#d4a017', // 终点印章金
+    firefly:  '#fff4c8', // 萤火暖光
+    backPath: '#e8c488', // 背面纸·可走格透出的暖路径
+    backWall: '#cdb38c', // 背面纸·墙/不可走
+    teleA:    '#5f8f6a', // 传送入口·苔绿（暖青替原冷青）
+    teleB:    '#c8702f', // 传送出口·赭橙
+    oneway:   '#b8541a'  // 单向箭头·橘红
+};
+
 const Effects = {
     textures: {},
     bgFireflies: [],
@@ -18,25 +36,8 @@ const Effects = {
             img.src = path;
             return img;
         };
-        const tileVariants = { 1: { path: ['a', 'b', 'c'], wall: ['a', 'b'] } };
-        for (let i = 1; i <= 6; i++) {
-            this.images.tiles[`ch${i}_path`] = load(`assets/tiles/ch${i}_path.jpg`);
-            this.images.tiles[`ch${i}_wall`] = load(`assets/tiles/ch${i}_wall.jpg`);
-            this.images.backgrounds[`ch${i}`] = load(`assets/backgrounds/ch${i}_bg.jpg`);
-            const variants = tileVariants[i];
-            if (variants) {
-                for (const v of variants.path) {
-                    this.images.tiles[`ch${i}_path_${v}`] = load(`assets/tiles/ch${i}_path_${v}.png`);
-                }
-                for (const v of variants.wall) {
-                    this.images.tiles[`ch${i}_wall_${v}`] = load(`assets/tiles/ch${i}_wall_${v}.png`);
-                }
-            }
-        }
-        this.images.paperBack = load('assets/tiles/paper_back.jpg');
-        this.images.paperOverlay = load('assets/textures/paper_overlay.jpg');
-        this.images.paperCrease = load('assets/textures/paper_crease.jpg');
-        this.images.paperFrame = load('assets/textures/paper_frame.png');
+        // 绘本风：地图瓦片与章节背景全部程序化生成，不再加载 AI 瓦片(ch*_path/wall.jpg)、
+        // 瓦片变体(_a/b/c)、AI 章节大背景(ch*_bg.jpg)。详见 _genTile / _getSceneBg。
         this.images.edgeMasks = [];
         for (let i = 1; i <= 6; i++) {
             this.images.edgeMasks.push(load(`assets/textures/edge_mask_${i}.png`));
@@ -444,7 +445,8 @@ const Effects = {
         this.textures = {
             path: this._genTile(240, chapter, 'path'),
             wall: this._genTile(240, chapter, 'wall'),
-            back: this._genTile(240, chapter, 'back')
+            back: this._genTile(240, chapter, 'back'),
+            empty: this._genTile(240, chapter, 'empty')
         };
         this._tileOffsets = {};
     },
@@ -461,66 +463,117 @@ const Effects = {
         return this._tileOffsets[key];
     },
 
+    _hexToRgb(hex) {
+        const h = hex.replace('#', '');
+        return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+    },
+
     _genTile(size, chapter, type) {
         const c = document.createElement('canvas');
         c.width = size; c.height = size;
         const ctx = c.getContext('2d');
         const theme = this._getTheme(chapter);
-        const t = theme[type];
 
-        ctx.fillStyle = t.base;
+        // 奶油纸地打底
+        ctx.fillStyle = PALETTE.paper;
         ctx.fillRect(0, 0, size, size);
 
-        for (let i = 0; i < 120; i++) {
-            const x = Math.random() * size;
-            const y = Math.random() * size;
-            const w = 1 + Math.random() * 4;
-            const h = 0.5 + Math.random() * 1.5;
-            const angle = Math.random() * Math.PI;
-            const bright = Math.random() > 0.5;
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(angle);
-            ctx.fillStyle = bright
-                ? `rgba(255,255,255,${0.02 + Math.random() * 0.04})`
-                : `rgba(0,0,0,${0.02 + Math.random() * 0.03})`;
-            ctx.fillRect(-w/2, -h/2, w, h);
-            ctx.restore();
-        }
-
-        for (let i = 0; i < 3; i++) {
-            const y = Math.random() * size;
-            ctx.strokeStyle = `rgba(255,255,255,${0.015 + Math.random() * 0.02})`;
-            ctx.lineWidth = 0.5;
-            ctx.beginPath();
-            for (let x = 0; x <= size; x += 4) {
-                const fy = y + Math.sin(x * 0.2 + i) * 2 + (Math.random() - 0.5);
-                x === 0 ? ctx.moveTo(x, fy) : ctx.lineTo(x, fy);
-            }
-            ctx.stroke();
-        }
-
-        if (type !== 'wall') {
-            const edgeGrad = ctx.createLinearGradient(0, 0, 0, size);
-            edgeGrad.addColorStop(0, 'rgba(255,255,255,0.04)');
-            edgeGrad.addColorStop(0.3, 'rgba(255,255,255,0)');
-            edgeGrad.addColorStop(0.7, 'rgba(0,0,0,0)');
-            edgeGrad.addColorStop(1, 'rgba(0,0,0,0.06)');
-            ctx.fillStyle = edgeGrad;
+        if (type === 'path') {
+            const base = theme.path.base, tint = theme.path.tint;
+            // 1) 可见底色：路径格清晰呈现章节暖色（保证一眼可辨"这是路"）
+            ctx.globalAlpha = 0.78;
+            ctx.fillStyle = base;
             ctx.fillRect(0, 0, size, size);
+            // 2) 彩铅笔触：深浅短斜触叠出手绘层次，不留死板平涂
+            for (let i = 0; i < 70; i++) {
+                const x = Math.random() * size, y = Math.random() * size;
+                const len = 8 + Math.random() * 12;
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(0.5 + (Math.random() - 0.5) * 0.5);
+                ctx.globalAlpha = 0.10 + Math.random() * 0.10;
+                ctx.fillStyle = (i % 2 === 0) ? tint : PALETTE.paper;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, len / 2, 1.4, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+            // 3) 左上定向高光
+            ctx.save();
+            ctx.globalAlpha = 0.10;
+            const hg = ctx.createLinearGradient(0, 0, size, size);
+            hg.addColorStop(0, 'rgba(255,250,230,1)');
+            hg.addColorStop(0.55, 'rgba(255,250,230,0)');
+            ctx.fillStyle = hg;
+            ctx.fillRect(0, 0, size, size);
+            ctx.restore();
+        } else if (type === 'wall') {
+            const base = theme.wall.base;
+            // 1) 深棕底打底（清晰呈现"这是墙"）
+            ctx.globalAlpha = 0.88;
+            ctx.fillStyle = base;
+            ctx.fillRect(0, 0, size, size);
+            // 2) 交叉影线叠手绘排线质感（比底色更深/更浅各一组）
+            const [br, bg, bb] = this._hexToRgb(base);
+            ctx.lineCap = 'round';
+            const hatch = (spacing, lw, alpha, dir, lum) => {
+                ctx.lineWidth = lw;
+                ctx.globalAlpha = alpha;
+                ctx.strokeStyle = `rgb(${Math.max(0,br+lum)},${Math.max(0,bg+lum)},${Math.max(0,bb+lum)})`;
+                ctx.beginPath();
+                for (let o = -size; o < size * 2; o += spacing) {
+                    if (dir === 1) { ctx.moveTo(o, 0); ctx.lineTo(o + size, size); }
+                    else { ctx.moveTo(o + size, 0); ctx.lineTo(o, size); }
+                }
+                ctx.stroke();
+            };
+            hatch(6, 1.4, 0.35, 1, -22);  // 深排线
+            hatch(7, 1.1, 0.25, -1, 26);   // 浅交叉
+        } else if (type === 'empty') {
+            // 空格 = 没画东西的纸，只有极淡暖晕
+            ctx.save();
+            ctx.globalAlpha = 0.05;
+            ctx.fillStyle = theme.back.backTone;
+            ctx.fillRect(0, 0, size, size);
+            ctx.restore();
+        } else { // back —— 背面纸，中等暖色，比 path 浅
+            ctx.globalAlpha = 0.5;
+            ctx.fillStyle = theme.back.backTone;
+            ctx.fillRect(0, 0, size, size);
+            ctx.globalAlpha = 1;
         }
+
+        // 共用纸颗粒噪点（自绘 canvas 不会 taint，安全）
+        ctx.globalAlpha = 1;
+        const img = ctx.getImageData(0, 0, size, size);
+        const d = img.data;
+        for (let i = 0; i < d.length; i += 4) {
+            const n = (Math.random() - 0.5) * 12;
+            d[i]   = Math.max(0, Math.min(255, d[i]   + n));
+            d[i+1] = Math.max(0, Math.min(255, d[i+1] + n));
+            d[i+2] = Math.max(0, Math.min(255, d[i+2] + n));
+        }
+        ctx.putImageData(img, 0, 0);
 
         return c;
     },
 
     _getTheme(chapter) {
+        // 6 章全部锁在「奶油纸 + 暖色相微移」框架内，区分靠 hue 不靠明度跳变。
+        // base=彩铅主色, tint=稍深同相叠色, stroke=手绘描边RGB, backTone=背面纸暖色
         const themes = [
-            { path: {base:'#e6d4ac'}, wall: {base:'#5c4a35'}, back: {base:'#c4a8c0'} },
-            { path: {base:'#dcb88c'}, wall: {base:'#4c3520'}, back: {base:'#b89aaa'} },
-            { path: {base:'#c89870'}, wall: {base:'#3a2115'}, back: {base:'#a87a90'} },
-            { path: {base:'#9cb8c4'}, wall: {base:'#1f3040'}, back: {base:'#8a80a8'} },
-            { path: {base:'#8aa085'}, wall: {base:'#1a2418'}, back: {base:'#706888'} },
-            { path: {base:'#b89878'}, wall: {base:'#1f1825'}, back: {base:'#8a6e88'} }
+            // ch0 大学站·暖台灯蜜色
+            { path:{base:'#ecc98a',tint:'#d8ad63'}, wall:{base:'#5e4630'}, back:{backTone:'#e7cda6'}, stroke:'120,80,30' },
+            // ch1 江北山城·雾青暖砂
+            { path:{base:'#d8c690',tint:'#c0a968'}, wall:{base:'#574a3a'}, back:{backTone:'#ddc8a2'}, stroke:'110,86,40' },
+            // ch2 解放碑烟火·夕阳桃橘
+            { path:{base:'#edba80',tint:'#d99a5a'}, wall:{base:'#5e4028'}, back:{backTone:'#e8c29a'}, stroke:'126,72,28' },
+            // ch3 朝天门→三峡·青绿水汽（仍暖）
+            { path:{base:'#cdcb96',tint:'#aeae72'}, wall:{base:'#4a4a36'}, back:{backTone:'#d2caa0'}, stroke:'96,96,46' },
+            // ch4 秦岭北方原野·灰土暖khaki
+            { path:{base:'#d3c69e',tint:'#bcab7c'}, wall:{base:'#564f40'}, back:{backTone:'#d2c6a4'}, stroke:'106,92,54' },
+            // ch5 大连海岸归途·珊瑚暖
+            { path:{base:'#eec08c',tint:'#dca066'}, wall:{base:'#5a4636'}, back:{backTone:'#e4c8a8'}, stroke:'122,80,36' }
         ];
         return themes[chapter] || themes[0];
     },
@@ -659,12 +712,12 @@ const Effects = {
             ctx.save();
             ctx.globalAlpha = alpha;
 
-            // 增强发光效果
+            // 增强发光效果（暖金萤火，呼应奶油纸绘本风）
             const glowSize = f.size * 3;
             const gradient = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, glowSize);
-            gradient.addColorStop(0, 'rgba(200, 255, 50, ' + alpha + ')');
-            gradient.addColorStop(0.4, 'rgba(200, 255, 50, ' + (alpha * 0.3) + ')');
-            gradient.addColorStop(1, 'rgba(200, 255, 50, 0)');
+            gradient.addColorStop(0, 'rgba(255, 217, 125, ' + alpha + ')');
+            gradient.addColorStop(0.4, 'rgba(255, 217, 125, ' + (alpha * 0.3) + ')');
+            gradient.addColorStop(1, 'rgba(255, 217, 125, 0)');
 
             ctx.fillStyle = gradient;
             ctx.beginPath();
@@ -673,7 +726,7 @@ const Effects = {
 
             // 核心亮点
             ctx.globalAlpha = alpha * 1.2;
-            ctx.fillStyle = '#ffff99';
+            ctx.fillStyle = '#fff4c8';
             ctx.beginPath();
             ctx.arc(f.x, f.y, f.size * 0.6, 0, Math.PI * 2);
             ctx.fill();
@@ -689,28 +742,28 @@ const Effects = {
         const gh = Grid.gridHeight * Grid.TILE_SIZE;
 
         if (chapter === 0) {
-            this._drawTrees(ctx, gx-120, gy, 3, '#5a8a4a');
-            this._drawTrees(ctx, gx+gw+40, gy+50, 2, '#4a7a3a');
-            this._drawClouds(ctx, 0.08);
+            this._drawTrees(ctx, gx-120, gy, 3, '#8aa86a');
+            this._drawTrees(ctx, gx+gw+40, gy+50, 2, '#7a9a5a');
+            this._drawClouds(ctx, 0.16);
         } else if (chapter === 1) {
-            this._drawMountains(ctx, 0.1, '#8a6a4a');
-            this._drawBuildings(ctx, gx+gw+60, gy, 3, '#7a5a3a');
+            this._drawMountains(ctx, 0.16, '#c6a274');
+            this._drawBuildings(ctx, gx+gw+60, gy, 3, '#b08a5a');
         } else if (chapter === 2) {
             this._drawLanterns(ctx, gx-60, gy-40, 4);
             this._drawLanterns(ctx, gx+gw+20, gy, 3);
         } else if (chapter === 3) {
-            this._drawWaves(ctx, gy+gh+40, 0.08);
+            this._drawWaves(ctx, gy+gh+40, 0.16);
             this._drawBoat(ctx, gx-150, gy+gh+60);
-            this._drawMountains(ctx, 0.06, '#2a4a5a');
+            this._drawMountains(ctx, 0.12, '#9ab0a0');
         } else if (chapter === 4) {
-            this._drawMountains(ctx, 0.12, '#2a4a3a');
-            this._drawStars(ctx, 25, 0.15);
-            this._drawRails(ctx, gx-200, gy+gh+30, 0.08);
+            this._drawMountains(ctx, 0.2, '#9aaa84');
+            this._drawStars(ctx, 25, 0.12);
+            this._drawRails(ctx, gx-200, gy+gh+30, 0.14);
         } else if (chapter === 5) {
             this._drawMoon(ctx, 1100, 80);
             this._drawTrain(ctx, gx-250, gy+gh+50);
-            this._drawStars(ctx, 40, 0.2);
-            this._drawRails(ctx, gx-300, gy+gh+80, 0.1);
+            this._drawStars(ctx, 40, 0.14);
+            this._drawRails(ctx, gx-300, gy+gh+80, 0.16);
         }
         ctx.restore();
     },
@@ -768,7 +821,7 @@ const Effects = {
     },
 
     _drawWaves(ctx, startY, alpha) {
-        ctx.globalAlpha = alpha; ctx.strokeStyle = '#5a9aba'; ctx.lineWidth = 1;
+        ctx.globalAlpha = alpha; ctx.strokeStyle = '#7fa6a0'; ctx.lineWidth = 1.5;
         for (let row = 0; row < 5; row++) {
             ctx.beginPath();
             for (let x = 0; x <= 1400; x += 6) {
@@ -837,7 +890,8 @@ const Effects = {
     },
 
     getTileCanvas(tile) {
-        if (tile === Grid.WALL || tile === Grid.EMPTY) return this.textures.wall;
+        if (tile === Grid.EMPTY) return this.textures.empty;
+        if (tile === Grid.WALL) return this.textures.wall;
         return this.textures.path;
     },
 

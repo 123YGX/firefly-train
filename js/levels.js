@@ -60,8 +60,6 @@ const Levels = {
         // Chapter 1: 期末与决心 (教学, 6x6, 1折)
         [
             { width:10, height:6, par:1,
-              bgImageFront: 'assets/levels/ch1_lv1_front.png',
-              bgImageBack:  'assets/levels/ch1_lv1_back.png',
               front:[
                 [2,2,2,2,2,2,2,2,2,2],
                 [2,2,2,2,2,2,2,2,2,2],

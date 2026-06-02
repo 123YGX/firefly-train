@@ -58,6 +58,7 @@ Front contains the visible grid (START, END, initial PATH segments, WALL). Back 
 
 - **vectorengine（OpenAI 兼容代理）**：生图 + 文本，base_url `https://api.vectorengine.cn/v1`，key 在 `.env` 里 `VECTORENGINE_API_KEY=...`
 - 已确认支持的图像生成模型（部分）：`gpt-image-1`、`gpt-image-2`、`dall-e-3`、`flux.1-kontext-pro`、`flux-2-pro`、`doubao-seedream-4-5-251128`、`qwen-image-2.0-pro`、`mj_imagine`、`grok-4-image`、`z-image-turbo`、`kling-image`
+- **图像模型决策（2026-05-31）**：章节/场景配图统一改用 **gpt 系列（`gpt-image-1`）**，不再用 doubao-seedream。`tools/prompts/ch1.txt`、`ch2.txt`、`ch3.txt`（彩铅章节背景）**暂不生成、搁置待定**。
 - 已确认支持的视频生成模型（部分）：`sora-2`、`viduq3-pro`、`MiniMax-Hailuo-2.3`、`kling-omni-image`
 
 ## 当前进行中方案
