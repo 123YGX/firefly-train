@@ -58,10 +58,37 @@ Front contains the visible grid (START, END, initial PATH segments, WALL). Back 
 
 - **vectorengine（OpenAI 兼容代理）**：生图 + 文本，base_url `https://api.vectorengine.cn/v1`，key 在 `.env` 里 `VECTORENGINE_API_KEY=...`
 - 已确认支持的图像生成模型（部分）：`gpt-image-1`、`gpt-image-2`、`dall-e-3`、`flux.1-kontext-pro`、`flux-2-pro`、`doubao-seedream-4-5-251128`、`qwen-image-2.0-pro`、`mj_imagine`、`grok-4-image`、`z-image-turbo`、`kling-image`
-- **图像模型决策（2026-05-31）**：章节/场景配图统一改用 **gpt 系列（`gpt-image-1`）**，不再用 doubao-seedream。`tools/prompts/ch1.txt`、`ch2.txt`、`ch3.txt`（彩铅章节背景）**暂不生成、搁置待定**。
+- **图像模型决策（2026-05-31）**：章节/场景配图统一改用 **gpt 系列**。注意 `gpt-image-1` / `gpt-image-1.5` 的上游分组经常 429 饱和，实测 **`gpt-image-2` 分组通畅**，章节大图就是它出的。`tools/prompts/ch1/ch2/ch3.txt`（彩铅章节背景）**已于 2026-06-02 生成落地**（见下方「章节场景大图」段）。
 - 已确认支持的视频生成模型（部分）：`sora-2`、`viduq3-pro`、`MiniMax-Hailuo-2.3`、`kling-omni-image`
 
 ## 当前进行中方案
+
+### 章节场景大图：彩铅绘本风 AI 大图接入（2026-06-02 落地）
+
+**目标**：游戏内章节背景从程序化暖渐变升级为彩铅绘本风 AI 插画大图。
+
+**关键洞察 —— 为什么这次大图能用，上次不能**：
+上次（提交 27d7c86）从 AI 大图退回程序化渐变，原因是「写实大图需黑膜压暗才能让折纸浮出，会弄脏全屏」。本次绕开的关键：
+1. prompt 明确要求 **中心留白（center calm and uncluttered）、视觉重点集中在边缘**；
+2. `grid.js:134-143` 谜题本身坐在一张近不透明的奶油纸实底卡片（`rgba(244,234,208,0.96)` 圆角+阴影）上。
+两者叠加 → 谜题卡片盖住中心开阔区、边缘插画从卡片四周自然露出，**无需任何黑膜**。实测六章观感层次分明。
+
+**资源（gpt-image-2 出图，1536x1024，无水印）：**
+- `assets/backgrounds/ch1_scene.jpg` — ch0 大学宿舍夜晚（暖台灯+窗外城市灯光）
+- `assets/backgrounds/ch2_scene.jpg` — ch1 雾中山城黎明（层叠吊脚楼+暖灯）
+- `assets/backgrounds/ch3_scene.jpg` — ch2 缆车黄昏（缆车+金色夕阳天际线+江面）
+- `assets/backgrounds/ch4_scene.jpg` — ch3 三峡晨雾（墨绿层叠峡谷+谷底碧江+栈道）
+- `assets/backgrounds/ch5_scene.jpg` — ch4 南北山河（火车穿秦岭，一侧绿一侧雪）
+- `assets/backgrounds/ch6_scene.jpg` — ch5 大连海岸（珊瑚色晚霞+开阔海面+海岸铁路）
+- prompt 在 `tools/prompts/ch1.txt`～`ch6.txt`（文件名 1-based，章节 0-based 错开一位）
+
+**代码改动：**
+- `effects.js` `_loadImages` 末尾加载 scene 图到 `images.backgrounds[0..5]`，新增 `getSceneImage(chapter)`（就绪返回 img 否则 null）
+- `game.js` `drawBackground` 优先 `Effects.getSceneImage`，无图回退 `_getSceneBg` 暖渐变
+- `game.js` `loop` 有大图的章节跳过 `drawSceneEnvironment`（程序化远景会和插画打架）
+
+**后续：**
+- 六章大图已全部到位。若要重出某张，照现有 `tools/prompts/chN.txt` 彩铅风格 prompt，用 `gpt-image-2`（注意 gpt-image-1/1.5 常 429；安全系统偶发误判 invalid_prompt，重试即过）。
 
 ### UI 风格统一：暖色水彩 + 奶油纸票（2026-05-27 落地）
 

@@ -257,9 +257,14 @@ const Game = {
     },
 
     drawBackground() {
-        // 绘本风：不再用 AI 写实大图（需黑膜压暗才能让纸浮出，会弄脏全屏）。
-        // 始终走暖色日暮渐变 + 程序化彩铅远景。
-        this.ctx.drawImage(this._getSceneBg(Levels.currentChapter), 0, 0);
+        // 优先用章节彩铅大图（中心留白，谜题卡片盖中心，边缘插画露出，无需黑膜）。
+        // 没有大图的章节回退暖色日暮渐变 + 程序化彩铅远景。
+        const scene = Effects.getSceneImage(Levels.currentChapter);
+        if (scene) {
+            this.ctx.drawImage(scene, 0, 0, this.canvas.width, this.canvas.height);
+        } else {
+            this.ctx.drawImage(this._getSceneBg(Levels.currentChapter), 0, 0);
+        }
     },
 
     _getSceneBg(chapter) {
@@ -332,8 +337,11 @@ const Game = {
             this.drawMenuBackground();
         } else if (this.state === 'playing' || this.state === 'complete') {
             this.drawBackground();
-            // 绘本风：背景已是暖渐变，无需黑遮罩，始终绘制程序化彩铅远景
-            Effects.drawSceneEnvironment(this.ctx, Levels.currentChapter);
+            // 有彩铅大图的章节，插画已含远景，跳过程序化远景避免双重元素打架；
+            // 无大图章节仍画暖渐变 + 程序化彩铅远景
+            if (!Effects.getSceneImage(Levels.currentChapter)) {
+                Effects.drawSceneEnvironment(this.ctx, Levels.currentChapter);
+            }
             Effects.updateBgFireflies();
             Effects.drawBgFireflies(this.ctx);
             Grid.draw(this.ctx);

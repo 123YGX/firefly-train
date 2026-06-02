@@ -46,6 +46,22 @@ const Effects = {
             this.images.decor[n] = load(`assets/decor/${n}.jpg`);
         });
         this.images.decor.stilted_house = load('assets/decor/stilted_house.png');
+
+        // 章节场景大图（彩铅绘本风，gpt-image-2 出图）。中心留白、视觉重点在边缘，
+        // 谜题卡片坐在自己的奶油纸实底上盖住中心，边缘插画从卡片四周露出 —— 无需黑膜压暗。
+        // 6 章全有图（0-based），prompt 文件名 1-based 错开一位。
+        const sceneFiles = {
+            0: 'ch1_scene.jpg', 1: 'ch2_scene.jpg', 2: 'ch3_scene.jpg',
+            3: 'ch4_scene.jpg', 4: 'ch5_scene.jpg', 5: 'ch6_scene.jpg'
+        };
+        for (const ch in sceneFiles) {
+            this.images.backgrounds[ch] = load(`assets/backgrounds/${sceneFiles[ch]}`);
+        }
+    },
+
+    getSceneImage(chapter) {
+        const img = this.images.backgrounds[chapter];
+        return this._isReady(img) ? img : null;
     },
 
     loadLevelImages(level) {
