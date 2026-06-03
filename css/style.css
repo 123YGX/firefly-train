@@ -1672,30 +1672,6 @@ body {
     100% { transform: scale(3.4);  filter: brightness(1.7)  blur(7px); opacity: 0.4; }
 }
 
-/* 折痕铺路新机制 · 临时试玩入口（右上角小药瓶按钮） */
-#menu-screen.desk-mode .crease-demo-btn {
-    position: absolute;
-    top: 4%;
-    right: 3%;
-    z-index: 5;
-    padding: 8px 14px;
-    font-size: 14px;
-    font-family: inherit;
-    color: #5a3d12;
-    background: rgba(255, 244, 210, 0.92);
-    border: 1.5px solid rgba(180, 130, 60, 0.6);
-    border-radius: 20px;
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(60, 40, 15, 0.25);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-    -webkit-tap-highlight-color: transparent;
-}
-#menu-screen.desk-mode .crease-demo-btn:hover {
-    transform: translateY(-1px) scale(1.04);
-    background: rgba(255, 250, 230, 1);
-    box-shadow: 0 4px 14px rgba(255, 200, 90, 0.5);
-}
-
 /* 收集室页面 */
 #collection-screen {
     background: radial-gradient(ellipse at 50% 30%, #14233f 0%, #0a1628 70%);
@@ -1806,18 +1782,8 @@ body {
     }
 }
 
-/* 虚拟方向键：默认隐藏，仅触摸设备 + 折痕模式显示 */
+/* 虚拟方向键：主玩法（折叠+自动寻路）不使用，恒隐藏 */
 #dpad { display: none; }
-body.touch-device #game-screen.crease-active #dpad {
-    display: block;
-    position: absolute;
-    right: 3%;
-    bottom: 5%;
-    width: 144px;
-    height: 144px;
-    z-index: 40;
-    touch-action: none;
-}
 .dpad-btn {
     position: absolute;
     width: 46px;

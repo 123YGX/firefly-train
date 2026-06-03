@@ -37,16 +37,6 @@ const UI = {
             });
         }
 
-        const btnCreaseDemo = document.getElementById('btn-crease-demo');
-        if (btnCreaseDemo) {
-            btnCreaseDemo.addEventListener('click', () => {
-                Audio.playClick();
-                Audio.startBGM();
-                Levels._creaseOverride = Levels.creasePrototype;
-                Game.startLevel();
-            });
-        }
-
         const btnChapters = document.getElementById('btn-chapters');
         if (btnChapters) {
             btnChapters.addEventListener('click', () => {
@@ -77,15 +67,7 @@ const UI = {
 
         document.getElementById('btn-next-level').addEventListener('click', () => {
             Audio.playClick();
-            if (Game.creaseMode) {
-                Levels._creaseOverride = null;
-                Game.creaseMode = false;
-                Audio.stopBGM();
-                this.showScreen('menu');
-                Game.state = 'menu';
-            } else {
-                Game.advanceLevel();
-            }
+            Game.advanceLevel();
         });
 
         document.getElementById('btn-back-menu').addEventListener('click', () => {
@@ -152,8 +134,6 @@ const UI = {
             Audio.playClick();
             this.hideConfirm();
             Audio.stopBGM();
-            Levels._creaseOverride = null;
-            Game.creaseMode = false;
             Game.state = 'menu';
             this.showScreen('menu');
         });
@@ -987,7 +967,7 @@ const UI = {
         const hasItem = (typeof Collection !== 'undefined') && Collection.hasItem(c, l);
         if (!hasItem) { el.style.display = 'none'; return; }
         el.style.display = 'inline';
-        const got = (typeof Game !== 'undefined' && Game.creaseMode) ? CreaseMode.gotMemento : Player.gotMemento;
+        const got = Player.gotMemento;
         const owned = Collection.isCollected(c, l);
         if (got) {
             el.textContent = '纪念物 ✦';
@@ -1006,14 +986,17 @@ const UI = {
     updateFoldCount() {
         const el = document.getElementById('hud-folds');
         if (!el) return;
-        if (typeof Game !== 'undefined' && Game.creaseMode) {
-            el.textContent = `萤火: ${CreaseMode.collected} / ${CreaseMode.totalFireflies()}`;
-            return;
-        }
         const level = Levels.getCurrentLevel();
         const par = level.par || 1;
         const folds = Fold.history.length;
-        el.textContent = `折叠: ${folds} / ${par}`;
+        // 有萤火的关，HUD 同时显示萤火进度，提示玩家这关要顺路收集
+        const countFlies = g => g.flat().filter(t => t === Grid.COLLECTIBLE).length;
+        const totalFlies = countFlies(level.front) + countFlies(level.back);
+        if (totalFlies > 0) {
+            el.textContent = `折叠: ${folds}/${par}　🔥 ${Player.collected}/${totalFlies}`;
+        } else {
+            el.textContent = `折叠: ${folds} / ${par}`;
+        }
     },
 
     showFoldHint(text) {

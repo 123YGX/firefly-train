@@ -137,24 +137,42 @@ const Player = {
         return null;
     },
 
-    // 连通终点的前提下，若纪念物可达则优先绕经它再到终点（不强制）。
-    // 返回完整路径数组，或 null（连终点都不通）。
+    // 收集所有可见萤火 + 纪念物后到终点（贪心最近顺序，不强制，捡不到的跳过）。
+    // 返回完整路径数组，或 null（终点不通）。
     findCoveringRoute() {
         const end = Grid.findEnd();
-        const direct = this.findPath(end.x, end.y);
-        if (!direct) return null;  // 终点都到不了，无解
+        if (!this.findPath(end.x, end.y)) return null;  // 终点不通则无解
 
-        const m = this.findMemento();
-        if (!m) return direct;     // 本关无纪念物 / 已收集
+        // 收集当前网格所有萤火 + 纪念物坐标
+        const targets = [];
+        const grid = Grid.displayGrid;
+        for (let y = 0; y < grid.length; y++) {
+            for (let x = 0; x < grid[y].length; x++) {
+                const t = grid[y][x];
+                if (t === Grid.COLLECTIBLE || t === Grid.MEMENTO) targets.push({ x, y });
+            }
+        }
 
-        // 试 起点→纪念物→终点
-        const toM = this.findPath(m.x, m.y);
-        if (!toM || toM.length === 0) return direct;  // 纪念物不可达，走直达
-        const mToEnd = this.findPath(end.x, end.y, m.x, m.y);
-        if (!mToEnd) return direct;
+        // 贪心串联：从当前位置出发，每次选最近的可达目标，最后接终点
+        let cx = this.x, cy = this.y, fullPath = [];
+        const remaining = [...targets];
+        while (remaining.length > 0) {
+            // 找距离当前位置最近的可达目标
+            let best = null, bestPath = null, bestLen = Infinity;
+            for (let i = 0; i < remaining.length; i++) {
+                const seg = this.findPath(remaining[i].x, remaining[i].y, cx, cy);
+                if (seg && seg.length < bestLen) { bestLen = seg.length; best = i; bestPath = seg; }
+            }
+            if (best === null) break;  // 剩余目标均不可达，停止
+            const tgt = remaining.splice(best, 1)[0];
+            fullPath = fullPath.concat(bestPath);
+            cx = tgt.x; cy = tgt.y;
+        }
 
-        // 拼接（toM 末尾即纪念物格，mToEnd 从纪念物的下一步开始）
-        return toM.concat(mToEnd);
+        // 最后拼接到终点
+        const toEnd = this.findPath(end.x, end.y, cx, cy);
+        if (!toEnd) return null;
+        return fullPath.concat(toEnd);
     },
 
     tryMove() {

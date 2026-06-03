@@ -45,7 +45,9 @@ const Fold = {
     },
 
     detectEdge(mx, my) {
-        const margin = 15;
+        // 命中区：触摸设备指肚粗，放宽到 28px；鼠标精准，保持 18px。
+        const touch = (typeof document !== 'undefined') && document.body.classList.contains('touch-device');
+        const margin = touch ? 28 : 18;
         const gx = mx - Grid.offsetX;
         const gy = my - Grid.offsetY;
         const totalW = Grid.gridWidth * Grid.TILE_SIZE;

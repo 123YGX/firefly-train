@@ -63,7 +63,6 @@
 <script src="js/grid.js"></script>
 <script src="js/fold.js"></script>
 <script src="js/player.js"></script>
-<script src="js/crease.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/particles.js"></script>
 <script src="js/effects.js"></script>
@@ -216,57 +215,6 @@
             // 模拟点击画纸：触发「钻进纸里」推镜白光过渡，配合 settle 截中间帧
             silenceAudio();
             if (UI.triggerMenuLaunch) UI.triggerMenuLaunch(() => {});
-            return;
-        }
-        if (screen === 'crease') {
-            // 折痕铺路原型关。folds=V1,H2,... 预折；moves=RRUU 预走；done=1 直接结算过关界面
-            Levels._creaseOverride = Levels.creasePrototype;
-            Levels.currentChapter = 0; Levels.currentLevel = 0;
-            Game.startLevel();
-            forceScreen('game');
-            const folds = q.get('folds');
-            if (folds) folds.split(',').forEach(f => {
-                const m = f.trim().match(/^([VH])(\d+)$/i);
-                if (m) CreaseMode._applyRoad(m[1].toUpperCase(), +m[2]);
-            });
-            const moves = q.get('moves');
-            if (moves) {
-                // 瞬移版预走（截图用，跳过动画）：逐格直接落位并结算收集
-                const dmap = { R:[1,0], L:[-1,0], U:[0,-1], D:[0,1] };
-                for (const ch of moves.toUpperCase()) {
-                    const d = dmap[ch]; if (!d) continue;
-                    const nx = CreaseMode.px + d[0], ny = CreaseMode.py + d[1];
-                    if (nx<0||nx>=CreaseMode.W||ny<0||ny>=CreaseMode.H) continue;
-                    if (!CreaseMode._edgeOpen(CreaseMode.px, CreaseMode.py, nx, ny)) continue;
-                    CreaseMode.px = nx; CreaseMode.py = ny;
-                    CreaseMode.pixelX = CreaseMode._cx(nx); CreaseMode.pixelY = CreaseMode._cy(ny);
-                    const res = CreaseMode._arriveAt(nx, ny);
-                    if (res === 'complete' && q.get('done') === '1') { Game.onCreaseComplete(); break; }
-                }
-                UI.updateFoldCount();
-            }
-            if (q.get('hover')) {
-                const m = q.get('hover').match(/^([vh])(\d+)([a-z]+)$/i);
-                if (m) CreaseMode.hover = { type: m[1].toLowerCase(), index: +m[2], side: m[3].toLowerCase() };
-            }
-            if (q.get('dpad') === '1') {
-                document.body.classList.add('touch-device');
-                const gs = document.getElementById('game-screen');
-                if (gs) gs.classList.add('crease-active');
-            }
-            if (q.get('probe') === 'dpad') {
-                setTimeout(() => {
-                    const d = document.getElementById('dpad');
-                    const cs = d ? getComputedStyle(d) : null;
-                    const r = d ? d.getBoundingClientRect() : null;
-                    console.log('DPAD-PROBE display=' + (cs && cs.display) +
-                        ' vis=' + (cs && cs.visibility) + ' z=' + (cs && cs.zIndex) +
-                        ' rect=' + (r ? [r.left|0, r.top|0, r.width|0, r.height|0].join(',') : 'null'));
-                    const b = d && d.querySelector('.dpad-btn');
-                    const br = b ? b.getBoundingClientRect() : null;
-                    console.log('DPAD-PROBE btn rect=' + (br ? [br.left|0, br.top|0, br.width|0, br.height|0].join(',') : 'null'));
-                }, 200);
-            }
             return;
         }
         // 默认 menu，不动
