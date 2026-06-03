@@ -36,6 +36,12 @@ const UI = {
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); enterJourney(); }
             });
         }
+        // 把画纸热区（含标题）动态对齐到书桌背景图里白纸的真实位置，
+        // 适配桌面 / 移动端旋转后不同的 cover 裁切量，避免标题溢出纸外
+        this._layoutDeskPaper();
+        const relayout = () => this._layoutDeskPaper();
+        window.addEventListener('resize', relayout);
+        window.addEventListener('orientationchange', () => setTimeout(relayout, 60));
 
         const btnChapters = document.getElementById('btn-chapters');
         if (btnChapters) {
@@ -376,6 +382,34 @@ const UI = {
         }
         html += '</span>';
         return html;
+    },
+
+    // 把 .desk-paper 热区（标题+提示居中其上）对齐到书桌背景图里白纸的真实位置。
+    // 背景用 background-size:cover，会按容器/图片比例差异裁切；这里复刻 cover 数学，
+    // 把白纸在【图片】里的归一化框换算成【容器】像素框，桌面与移动端旋转后都能对齐。
+    _layoutDeskPaper() {
+        const menu = this.screens && this.screens.menu;
+        const paper = document.getElementById('desk-paper');
+        if (!menu || !paper) return;
+        // 书桌图固有比例 + 白纸在图里的归一化框（由 tools/_measure_paper.js 实测）
+        const IMG_W = 1672, IMG_H = 941;
+        const P = { left: 0.260, top: 0.261, right: 0.751, bottom: 0.862 };
+        const cw = menu.clientWidth, ch = menu.clientHeight;
+        if (!cw || !ch) return;
+        // cover：取较大缩放，使图片铺满容器，多余部分溢出（居中裁切）
+        const scale = Math.max(cw / IMG_W, ch / IMG_H);
+        const dispW = IMG_W * scale, dispH = IMG_H * scale;
+        const offX = (cw - dispW) / 2, offY = (ch - dispH) / 2;  // 图片左上角相对容器（多为负）
+        // 白纸框 → 容器像素
+        const pxL = offX + P.left   * dispW;
+        const pxT = offY + P.top    * dispH;
+        const pxW = (P.right - P.left)  * dispW;
+        const pxH = (P.bottom - P.top)  * dispH;
+        const s = paper.style;
+        s.left   = (pxL / cw * 100).toFixed(2) + '%';
+        s.top    = (pxT / ch * 100).toFixed(2) + '%';
+        s.width  = (pxW / cw * 100).toFixed(2) + '%';
+        s.height = (pxH / ch * 100).toFixed(2) + '%';
     },
 
     _processTicketAsset() {
