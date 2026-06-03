@@ -8,14 +8,19 @@ const Player = {
     moving: false,
     path: [],
     pathIndex: 0,
-    moveSpeed: 4,
+    moveSpeed: 3,
     size: 20,
     collected: 0,
+    gotMemento: false,
     sprites: { side: null, front: null, back: null },
     facingRight: true,
     direction: 'front',
-    frameIndex: 0,
-    frameTick: 0,
+    // 行走动画（按位移驱动 + 子帧插值 + 起伏/微倾）
+    framePos: 0,        // 浮点帧位置 0..4，整数部分=当前帧，小数部分=子帧进度
+    _lastDrawX: 0,
+    _lastDrawY: 0,
+    _lean: 0,           // 当前倾斜（弧度），向目标值缓动
+    _lastStepFrame: -1, // 上次触发扬尘的帧，用于把扬尘对齐到落地瞬间
 
     loadSprite() {
         const load = (name, path) => {
@@ -49,21 +54,29 @@ const Player = {
         this.moving = false;
         this.path = [];
         this.collected = 0;
+        this.gotMemento = false;
+        this.framePos = 0;
+        this._lastDrawX = this.pixelX;
+        this._lastDrawY = this.pixelY;
+        this._lean = 0;
+        this._lastStepFrame = -1;
 
         const end = Grid.findEnd();
         this._updateFacing(end.x - startX, end.y - startY);
     },
 
-    findPath(endX, endY) {
+    findPath(endX, endY, fromX, fromY) {
         const grid = Grid.displayGrid;
         if (!grid || !grid.length) return null;
         const w = grid[0].length;
-        const startKey = this.y * w + this.x;
+        const sx = (fromX === undefined) ? this.x : fromX;
+        const sy = (fromY === undefined) ? this.y : fromY;
+        const startKey = sy * w + sx;
         const endKey = endY * w + endX;
 
         const parent = new Map();
         parent.set(startKey, null);
-        const queue = [{ x: this.x, y: this.y, k: startKey }];
+        const queue = [{ x: sx, y: sy, k: startKey }];
         let head = 0;
         const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
@@ -112,9 +125,40 @@ const Player = {
         return null;
     },
 
-    tryMove() {
+    // 找当前显示网格上的纪念物坐标（可能在折叠后才出现），没有则 null
+    findMemento() {
+        const grid = Grid.displayGrid;
+        if (!grid) return null;
+        for (let y = 0; y < grid.length; y++) {
+            for (let x = 0; x < grid[y].length; x++) {
+                if (grid[y][x] === Grid.MEMENTO) return { x, y };
+            }
+        }
+        return null;
+    },
+
+    // 连通终点的前提下，若纪念物可达则优先绕经它再到终点（不强制）。
+    // 返回完整路径数组，或 null（连终点都不通）。
+    findCoveringRoute() {
         const end = Grid.findEnd();
-        const path = this.findPath(end.x, end.y);
+        const direct = this.findPath(end.x, end.y);
+        if (!direct) return null;  // 终点都到不了，无解
+
+        const m = this.findMemento();
+        if (!m) return direct;     // 本关无纪念物 / 已收集
+
+        // 试 起点→纪念物→终点
+        const toM = this.findPath(m.x, m.y);
+        if (!toM || toM.length === 0) return direct;  // 纪念物不可达，走直达
+        const mToEnd = this.findPath(end.x, end.y, m.x, m.y);
+        if (!mToEnd) return direct;
+
+        // 拼接（toM 末尾即纪念物格，mToEnd 从纪念物的下一步开始）
+        return toM.concat(mToEnd);
+    },
+
+    tryMove() {
+        const path = this.findCoveringRoute();
         if (path && path.length > 0) {
             this.path = path;
             this.pathIndex = 0;
@@ -182,6 +226,17 @@ const Player = {
                 Particles.emit({x: cpx, y: cpy, count: 18, colors: ['#c8ff32','#ffeb3b','#a0ff00'], speed: 2.5, life: 40, gravity: -0.02, size: 2.5});
             }
 
+            // Memento: 旅途纪念物，走过即收集（不影响过关）
+            if (Grid.getTile(this.x, this.y) === Grid.MEMENTO) {
+                Grid.displayGrid[this.y][this.x] = Grid.PATH;
+                this.gotMemento = true;
+                Audio.playCollect();
+                const mpx = Grid.offsetX + this.x * Grid.TILE_SIZE + Grid.TILE_SIZE / 2;
+                const mpy = Grid.offsetY + this.y * Grid.TILE_SIZE + Grid.TILE_SIZE / 2;
+                Particles.emit({x: mpx, y: mpy, count: 26, colors: ['#ffd97d','#fff4c8','#ffb74d','#fff'], speed: 3, life: 55, gravity: -0.02, size: 3});
+                if (typeof UI !== 'undefined' && UI.onMementoPickup) UI.onMementoPickup();
+            }
+
             this.pathIndex++;
             if (this.pathIndex >= this.path.length) {
                 this.moving = false;
@@ -192,7 +247,11 @@ const Player = {
             this.pixelX += (dx / dist) * this.moveSpeed;
             this.pixelY += (dy / dist) * this.moveSpeed;
 
-            if (Math.random() < 0.3) {
+            // 扬尘对齐落地：触地帧（0/2）切换瞬间各扬一次，与步态同步
+            const footFrame = Math.floor(this.framePos) % 2;  // 0=触地相
+            const curStep = Math.floor(this.framePos);
+            if (footFrame === 0 && curStep !== this._lastStepFrame) {
+                this._lastStepFrame = curStep;
                 Particles.emit({
                     x: this.pixelX + (Math.random() - 0.5) * 8,
                     y: this.pixelY + 22,
@@ -206,24 +265,45 @@ const Player = {
     },
 
     draw(ctx) {
+        // 步频按实际位移驱动：每走过 DIST_PER_FRAME 像素推进一帧，速度/步幅天然同步，消除滑步
+        // 一格 80px ≈ 一个完整 4 帧循环（迈两步），节奏从容不急促
+        const DIST_PER_FRAME = 20;
         if (this.moving) {
-            this.frameTick++;
-            if (this.frameTick >= 6) {
-                this.frameTick = 0;
-                this.frameIndex = (this.frameIndex + 1) % 4;
-            }
+            const dx = this.pixelX - this._lastDrawX;
+            const dy = this.pixelY - this._lastDrawY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            this.framePos = (this.framePos + dist / DIST_PER_FRAME) % 4;
         } else {
-            this.frameIndex = 0;
-            this.frameTick = 0;
+            // 静止：缓动回站姿（第 0 帧）
+            const target = 0;
+            this.framePos += (target - this.framePos) * 0.2;
+            if (this.framePos < 0.02) this.framePos = 0;
         }
+        this._lastDrawX = this.pixelX;
+        this._lastDrawY = this.pixelY;
 
-        const breathe = this.moving ? 0 : Math.sin(Date.now() * 0.003) * 1;
+        const frameA = Math.floor(this.framePos) % 4;
+
+        // 走路起伏：经过相（第1/3帧两腿交错）抬到最高，触地相（第0/2帧）落回基线。
+        // (1-cos)/2 只向上抬、不向下砸 → 自然步态浮动，无弹跳感；4帧循环抬两次
+        const lift = this.moving ? (1 - Math.cos(this.framePos * Math.PI)) / 2 : 0;
+        const bob = -lift * 2.2;
+        const breathe = this.moving ? bob : Math.sin(Date.now() * 0.003) * 1;
+
+        // 转向微倾：侧向行走朝前进方向倾斜，缓动避免突变
+        let targetLean = 0;
+        if (this.moving && this.direction === 'side') {
+            targetLean = (this.facingRight ? 1 : -1) * 0.06;
+        }
+        this._lean += (targetLean - this._lean) * 0.15;
 
         ctx.save();
         ctx.globalAlpha = 0.25;
         ctx.fillStyle = '#000';
         ctx.beginPath();
-        ctx.ellipse(this.pixelX, this.pixelY + 24, 14, 6, 0, 0, Math.PI * 2);
+        // 抬脚时影子略缩，落地时略胀，增强离地感
+        const shadowScale = 1 + bob * 0.04;
+        ctx.ellipse(this.pixelX, this.pixelY + 24, 14 * shadowScale, 6 * shadowScale, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
@@ -233,17 +313,21 @@ const Player = {
             const frameH = img.naturalHeight;
             const charH = 68;
             const charW = Math.floor(charH * (frameW / frameH));
-            const sx = (this.moving ? this.frameIndex : 0) * frameW;
+
+            const flip = (this.direction === 'side' && !this.facingRight);
+            const topY = this.pixelY - charH / 2 + breathe;
 
             ctx.save();
-            const flip = (this.direction === 'side' && !this.facingRight);
-            if (flip) {
-                ctx.translate(this.pixelX, this.pixelY - charH/2 + breathe);
-                ctx.scale(-1, 1);
-                ctx.drawImage(img, sx, 0, frameW, frameH, -charW/2, 0, charW, charH);
-            } else {
-                ctx.drawImage(img, sx, 0, frameW, frameH, this.pixelX - charW/2, this.pixelY - charH/2 + breathe, charW, charH);
-            }
+            // 以脚底中心为锚点应用倾斜，让上身摆动、脚下稳定
+            ctx.translate(this.pixelX, this.pixelY + charH / 2);
+            if (this._lean) ctx.rotate(this._lean);
+            if (flip) ctx.scale(-1, 1);
+            ctx.translate(-this.pixelX, -(this.pixelY + charH / 2));
+
+            // 整帧切换（无交叉淡入，避免四肢半透明叠加产生虚影）
+            const sx = frameA * frameW;
+            const dxPos = flip ? -(this.pixelX + charW / 2) : this.pixelX - charW / 2;
+            ctx.drawImage(img, sx, 0, frameW, frameH, dxPos, topY, charW, charH);
             ctx.restore();
         } else {
             ctx.fillStyle = '#ffeb3b';

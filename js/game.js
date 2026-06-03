@@ -12,17 +12,64 @@ const Game = {
         this.canvas.height = 900;
         this.ctx = this.canvas.getContext('2d');
 
+        // 触摸设备标记（驱动虚拟方向键/移动端样式显示）
+        if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) {
+            document.body.classList.add('touch-device');
+        }
+
         Levels.loadProgress();
+        Collection.load();
         Effects.init();
         Player.loadSprite();
         UI.init();
         this.bindEvents();
+        this.bindDpad();
         this.loop();
+    },
+
+    // 虚拟方向键：触摸/点击 → CreaseMode.tryStep（仅折痕模式有效）
+    bindDpad() {
+        const dpad = document.getElementById('dpad');
+        if (!dpad) return;
+        const dirs = { up: [0,-1], down: [0,1], left: [-1,0], right: [1,0] };
+        dpad.querySelectorAll('.dpad-btn').forEach(btn => {
+            const d = dirs[btn.dataset.dir];
+            if (!d) return;
+            const fire = (e) => {
+                e.preventDefault();
+                if (this.creaseMode && this.state === 'playing') CreaseMode.tryStep(d[0], d[1]);
+            };
+            btn.addEventListener('touchstart', fire, { passive: false });
+            btn.addEventListener('click', fire);
+        });
     },
 
     bindEvents() {
         this.canvas.addEventListener('mousemove', (e) => {
             if (this.state !== 'playing') return;
+            const rect = this.canvas.getBoundingClientRect();
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            const mx = (e.clientX - rect.left) * scaleX;
+            const my = (e.clientY - rect.top) * scaleY;
+
+            if (this.creaseMode) {
+                if (CreaseMode.moving) { CreaseMode.hover = null; this.canvas.style.cursor = 'default'; return; }
+                const edge = CreaseMode.detectEdge(mx, my);
+                if (edge) {
+                    CreaseMode.hover = { type: edge.type, index: edge.index, side: CreaseMode.determineSide(mx, my, edge) };
+                    this.canvas.style.cursor = 'pointer';
+                } else {
+                    CreaseMode.hover = null;
+                    // 悬停在与玩家相邻的格上 → 可走光标
+                    const gx = Math.floor((mx - CreaseMode.offsetX) / CreaseMode.TS);
+                    const gy = Math.floor((my - CreaseMode.offsetY) / CreaseMode.TS);
+                    const adj = Math.abs(gx - CreaseMode.px) + Math.abs(gy - CreaseMode.py) === 1;
+                    this.canvas.style.cursor = adj ? 'pointer' : 'default';
+                }
+                return;
+            }
+
             if (Player.moving || Fold.animating) {
                 Fold.hoveredEdge = null;
                 Fold.hoveredSide = null;
@@ -30,11 +77,6 @@ const Game = {
                 this.canvas.style.cursor = 'default';
                 return;
             }
-            const rect = this.canvas.getBoundingClientRect();
-            const scaleX = this.canvas.width / rect.width;
-            const scaleY = this.canvas.height / rect.height;
-            const mx = (e.clientX - rect.left) * scaleX;
-            const my = (e.clientY - rect.top) * scaleY;
             Fold.hoveredEdge = Fold.detectEdge(mx, my);
             Fold.hoveredSide = Fold.hoveredEdge ? Fold.determineSide(mx, my, Fold.hoveredEdge) : null;
             Fold._previewCache = null;
@@ -42,13 +84,26 @@ const Game = {
         });
 
         this.canvas.addEventListener('click', (e) => {
-            if (this.state !== 'playing' || Player.moving || Fold.animating) return;
+            if (this.state !== 'playing') return;
             const rect = this.canvas.getBoundingClientRect();
             const scaleX = this.canvas.width / rect.width;
             const scaleY = this.canvas.height / rect.height;
             const mx = (e.clientX - rect.left) * scaleX;
             const my = (e.clientY - rect.top) * scaleY;
 
+            if (this.creaseMode) {
+                if (CreaseMode.moving) return;
+                const edge = CreaseMode.detectEdge(mx, my);
+                if (edge) {
+                    CreaseMode.executeFold(edge, CreaseMode.determineSide(mx, my, edge));
+                    UI.updateFoldCount();
+                } else {
+                    CreaseMode.tryClickMove(mx, my);
+                }
+                return;
+            }
+
+            if (Player.moving || Fold.animating) return;
             const edge = Fold.detectEdge(mx, my);
             if (edge) {
                 const side = Fold.determineSide(mx, my, edge);
@@ -57,6 +112,24 @@ const Game = {
         });
 
         document.addEventListener('keydown', (e) => {
+            // 折痕模式：方向键/WASD 走，Ctrl+Z 撤销折叠，R 重置
+            if (this.creaseMode && this.state === 'playing') {
+                const map = { ArrowUp: [0,-1], ArrowDown: [0,1], ArrowLeft: [-1,0], ArrowRight: [1,0],
+                              w: [0,-1], s: [0,1], a: [-1,0], d: [1,0], W: [0,-1], S: [0,1], A: [-1,0], D: [1,0] };
+                if (map[e.key]) {
+                    e.preventDefault();
+                    CreaseMode.tryStep(map[e.key][0], map[e.key][1]);
+                } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                    e.preventDefault();
+                    if (CreaseMode.undo()) { Audio.playClick(); UI.updateFoldCount(); }
+                } else if (e.key === 'r' || e.key === 'R') {
+                    Audio.playClick(); CreaseMode.reset(); UI.updateFoldCount();
+                } else if (e.key === 'Escape') {
+                    Audio.playClick(); UI.showConfirm();
+                }
+                return;
+            }
+
             if (this.state === 'playing' && !Player.moving && !Fold.animating) {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
                     e.preventDefault();
@@ -85,7 +158,6 @@ const Game = {
 
         this.canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            if (this.state !== 'playing' || Player.moving || Fold.animating) return;
             const touch = e.touches[0];
             const rect = this.canvas.getBoundingClientRect();
             const scaleX = this.canvas.width / rect.width;
@@ -93,6 +165,15 @@ const Game = {
             const mx = (touch.clientX - rect.left) * scaleX;
             const my = (touch.clientY - rect.top) * scaleY;
 
+            if (this.creaseMode) {
+                if (this.state !== 'playing' || CreaseMode.moving) return;
+                const edge = CreaseMode.detectEdge(mx, my);
+                if (edge) { CreaseMode.executeFold(edge, CreaseMode.determineSide(mx, my, edge)); UI.updateFoldCount(); }
+                else CreaseMode.tryClickMove(mx, my);
+                return;
+            }
+
+            if (this.state !== 'playing' || Player.moving || Fold.animating) return;
             const edge = Fold.detectEdge(mx, my);
             if (edge) {
                 const side = Fold.determineSide(mx, my, edge);
@@ -173,6 +254,20 @@ const Game = {
 
     startLevel() {
         const level = Levels.getCurrentLevel();
+        this.creaseMode = (level.mode === 'crease');
+
+        const gameScreen = document.getElementById('game-screen');
+        if (gameScreen) gameScreen.classList.toggle('crease-active', this.creaseMode);
+
+        if (this.creaseMode) {
+            CreaseMode.init(level);
+            this.levelComplete = false;
+            this.state = 'playing';
+            UI.showScreen('game');
+            UI.updateHUD();
+            return;
+        }
+
         Grid.init(level);
         Fold.reset();
         const start = Grid.findStart();
@@ -209,6 +304,12 @@ const Game = {
 
         Levels.markCurrentComplete(stars);
 
+        // 旅途纪念物：若本关走过了收集点，记入收集册（不影响星级/过关）
+        let mementoJustGot = false;
+        if (Player.gotMemento && typeof Collection !== 'undefined') {
+            mementoJustGot = Collection.collect(Levels.currentChapter, Levels.currentLevel);
+        }
+
         document.getElementById('complete-title').textContent = '过关！';
         const starsEl = document.getElementById('complete-stars');
         const starColor = stars >= 2 ? '#ffb74d' : '#888';
@@ -222,6 +323,83 @@ const Game = {
             starsEl.appendChild(span);
         }
         document.getElementById('complete-text').textContent = lvl ? lvl.after : '继续前进吧。';
+
+        // 纪念物提示横幅
+        const mEl = document.getElementById('complete-memento');
+        if (mEl) {
+            const item = (typeof Collection !== 'undefined')
+                ? Collection.getItem(Levels.currentChapter, Levels.currentLevel) : null;
+            if (mementoJustGot && item) {
+                mEl.innerHTML = `<span class="memento-got">✦ 收获纪念物：${item.name}</span>`;
+                mEl.style.display = 'block';
+            } else if (item && !Player.gotMemento) {
+                mEl.innerHTML = `<span class="memento-miss">○ 错过了本关纪念物（可重玩收集）</span>`;
+                mEl.style.display = 'block';
+            } else {
+                mEl.style.display = 'none';
+            }
+        }
+
+        setTimeout(() => UI.showScreen('complete'), 600);
+    },
+
+    onCreaseComplete() {
+        this.levelComplete = true;
+        this.state = 'complete';
+        Audio.playComplete();
+
+        const px = CreaseMode._cx(CreaseMode.end.x);
+        const py = CreaseMode._cy(CreaseMode.end.y);
+        Particles.emit({ x: px, y: py, count: 50, colors: ['#ffb74d','#ff7043','#ffeb3b','#fff'], speed: 4, life: 75, gravity: 0.03, size: 3.5 });
+
+        const chapter = Story.chapters[Levels.currentChapter];
+        const lvl = chapter ? chapter.levels[Levels.currentLevel] : null;
+        const stars = CreaseMode.computeStars();
+        const isDemo = !!Levels._creaseOverride;   // 试玩模式：不写正式存档/收集册
+        if (!isDemo) Levels.markCurrentComplete(stars);
+
+        let mementoJustGot = false;
+        if (!isDemo && CreaseMode.gotMemento && typeof Collection !== 'undefined') {
+            mementoJustGot = Collection.collect(Levels.currentChapter, Levels.currentLevel);
+        }
+
+        document.getElementById('complete-title').textContent = isDemo ? '试玩通关！' : '过关！';
+        const starsEl = document.getElementById('complete-stars');
+        const starColor = stars >= 2 ? '#ffb74d' : '#888';
+        starsEl.innerHTML = '';
+        for (let i = 0; i < 3; i++) {
+            const span = document.createElement('span');
+            span.className = 'star';
+            span.textContent = i < stars ? '★' : '☆';
+            span.style.color = i < stars ? starColor : '#444';
+            starsEl.appendChild(span);
+        }
+        const totalF = CreaseMode.totalFireflies();
+        let txt = `收集萤火 ${CreaseMode.collected} / ${totalF}`;
+        if (CreaseMode.gotMemento) txt += '　✦ 拾得纪念物';
+        document.getElementById('complete-text').textContent = txt;
+
+        const mEl = document.getElementById('complete-memento');
+        if (mEl) {
+            if (isDemo) {
+                mEl.style.display = 'none';
+            } else {
+                const item = (typeof Collection !== 'undefined')
+                    ? Collection.getItem(Levels.currentChapter, Levels.currentLevel) : null;
+                if (mementoJustGot && item) {
+                    mEl.innerHTML = `<span class="memento-got">✦ 收获纪念物：${item.name}</span>`;
+                    mEl.style.display = 'block';
+                } else if (item && !CreaseMode.gotMemento) {
+                    mEl.innerHTML = `<span class="memento-miss">○ 错过了本关纪念物（可重玩收集）</span>`;
+                    mEl.style.display = 'block';
+                } else {
+                    mEl.style.display = 'none';
+                }
+            }
+        }
+
+        const nextBtn = document.getElementById('btn-next-level');
+        if (nextBtn) nextBtn.textContent = isDemo ? '返回主菜单' : '下一关';
 
         setTimeout(() => UI.showScreen('complete'), 600);
     },
@@ -335,6 +513,20 @@ const Game = {
     loop() {
         if (this.state === 'menu' || this.state === 'story' || this.state === 'ending') {
             this.drawMenuBackground();
+        } else if (this.creaseMode && (this.state === 'playing' || this.state === 'complete')) {
+            this.drawBackground();
+            if (!Effects.getSceneImage(Levels.currentChapter)) {
+                Effects.drawSceneEnvironment(this.ctx, Levels.currentChapter);
+            }
+            Effects.updateBgFireflies();
+            Effects.drawBgFireflies(this.ctx);
+            CreaseMode.draw(this.ctx);
+            Particles.update();
+            Particles.draw(this.ctx);
+            if (CreaseMode.moving) {
+                const res = CreaseMode.update();
+                if (res === 'complete') this.onCreaseComplete();
+            }
         } else if (this.state === 'playing' || this.state === 'complete') {
             this.drawBackground();
             // 有彩铅大图的章节，插画已含远景，跳过程序化远景避免双重元素打架；

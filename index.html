@@ -8,15 +8,23 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <div id="rotate-prompt">
+        <div class="rotate-inner">
+            <div class="rotate-icon">📱</div>
+            <p class="rotate-text">请横过手机<br><span>横屏体验更佳</span></p>
+        </div>
+    </div>
     <div id="game-container">
         <canvas id="game-canvas"></canvas>
         <div id="transition-overlay"></div>
         <div id="ui-layer">
-            <div id="menu-screen" class="screen active">
-                <img class="menu-logo" src="assets/decor/menu_logo.png" alt="萤火与列车">
-                <h1 class="game-title" hidden>萤火与列车</h1>
-                <p class="subtitle">一段关于独自旅行与自我和解的折纸解谜之旅</p>
-                <button id="btn-start" class="menu-btn">开启旅程</button>
+            <div id="menu-screen" class="screen active desk-mode">
+                <div class="desk-paper" id="desk-paper" role="button" tabindex="0" aria-label="点击画纸，开启旅程">
+                    <img class="paper-title" src="assets/decor/title_paper.png" alt="萤火与列车">
+                    <p class="paper-hint">点击画纸 · 启程</p>
+                </div>
+                <div class="desk-notebook" id="desk-notebook" role="button" tabindex="0" aria-label="旅行回忆 · 旅途纪念册" title="旅行回忆"></div>
+                <button id="btn-crease-demo" class="crease-demo-btn" title="试玩折痕铺路新机制">🧪 新机制</button>
             </div>
             <div id="story-screen" class="screen">
                 <div class="story-box">
@@ -28,6 +36,7 @@
                 <div id="game-hud">
                     <span id="hud-chapter"></span>
                     <span id="hud-folds"></span>
+                    <span id="hud-memento"></span>
                     <span id="hud-level"></span>
                     <div id="hud-buttons">
                         <button id="btn-mute" class="hud-btn" title="静音">♪</button>
@@ -61,16 +70,32 @@
                     <div class="legend-item" id="legend-fragile" style="display:none"><span class="legend-square" style="background:#9e7b4a"></span>脆弱</div>
                     <div class="legend-item" id="legend-oneway" style="display:none"><span class="legend-square" style="background:#b8541a"></span>单向</div>
                 </div>
+                <div id="dpad" aria-hidden="true">
+                    <button class="dpad-btn dpad-up" data-dir="up" aria-label="上">▲</button>
+                    <button class="dpad-btn dpad-left" data-dir="left" aria-label="左">◀</button>
+                    <button class="dpad-btn dpad-right" data-dir="right" aria-label="右">▶</button>
+                    <button class="dpad-btn dpad-down" data-dir="down" aria-label="下">▼</button>
+                </div>
             </div>
             <div id="chapter-screen" class="screen">
                 <h2>章节选择</h2>
                 <div id="chapter-list"></div>
-                <button id="btn-back-menu" class="menu-btn">返回</button>
+                <div class="chapter-buttons">
+                    <button id="btn-back-menu" class="menu-btn">返回</button>
+                    <button id="btn-collection-chapter" class="menu-btn menu-btn-secondary">纪念册</button>
+                </div>
+            </div>
+            <div id="collection-screen" class="screen">
+                <h2>旅途纪念册</h2>
+                <p id="collection-progress" class="collection-progress"></p>
+                <div id="collection-grid"></div>
+                <button id="btn-back-collection" class="menu-btn">返回</button>
             </div>
             <div id="complete-screen" class="screen">
                 <div class="complete-box">
                     <h2 id="complete-title"></h2>
                     <div id="complete-stars"></div>
+                    <div id="complete-memento"></div>
                     <p id="complete-text"></p>
                     <button id="btn-next-level" class="menu-btn">下一关</button>
                 </div>
@@ -88,10 +113,12 @@
     </div>
     <script src="js/story.js"></script>
     <script src="js/levels.js"></script>
+    <script src="js/collection.js"></script>
     <script src="js/tutorial.js"></script>
     <script src="js/grid.js"></script>
     <script src="js/fold.js"></script>
     <script src="js/player.js"></script>
+    <script src="js/crease.js"></script>
     <script src="js/audio.js"></script>
     <script src="js/particles.js"></script>
     <script src="js/effects.js"></script>

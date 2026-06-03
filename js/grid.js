@@ -14,6 +14,7 @@ const Grid = {
     ONEWAY_D: 11,
     ONEWAY_L: 12,
     ONEWAY_U: 13,
+    MEMENTO: 14,
 
     colors: {
         front: {
@@ -30,7 +31,8 @@ const Grid = {
             10: '#2a4a6b',
             11: '#2a4a6b',
             12: '#2a4a6b',
-            13: '#2a4a6b'
+            13: '#2a4a6b',
+            14: '#2a4a6b'
         },
         back: {
             0: '#2e1a3a',
@@ -46,7 +48,8 @@ const Grid = {
             10: '#6b2a6b',
             11: '#6b2a6b',
             12: '#6b2a6b',
-            13: '#6b2a6b'
+            13: '#6b2a6b',
+            14: '#6b2a6b'
         }
     },
 
@@ -257,7 +260,7 @@ const Grid = {
 
                 const cx = px + tw / 2, cy = py + th / 2;
 
-                if (tile === this.START || tile === this.END || tile === this.COLLECTIBLE) {
+                if (tile === this.START || tile === this.END || tile === this.COLLECTIBLE || tile === this.MEMENTO) {
                     this._drawWarmHalo(ctx, cx, cy, tile === this.COLLECTIBLE ? '#c8ff32' : '#ffb74d');
                 }
 
@@ -312,6 +315,13 @@ const Grid = {
                     }
                     ctx.closePath();
                     ctx.fill();
+                } else if (tile === this.MEMENTO) {
+                    const sticker = this._getMementoSticker();
+                    if (sticker) {
+                        this._drawMementoSticker(ctx, cx, cy, sticker);
+                    } else {
+                        this._drawMemento(ctx, cx, cy);
+                    }
                 }
             }
         }
@@ -383,8 +393,84 @@ const Grid = {
         ctx.restore();
     },
 
-    _drawStamp(ctx, cx, cy, text, color, yOffset) {
+    // 纪念物贴纸：每关一张 assets/collection/c{章}_{关}.png（透明 die-cut 贴纸）。
+    // 取代程序化金礼盒标记；图未就绪时回退 _drawMemento。
+    _mementoStickerCache: {},
+    _getMementoSticker() {
+        if (typeof Levels === 'undefined') return null;
+        const key = `${Levels.currentChapter}_${Levels.currentLevel}`;
+        let img = this._mementoStickerCache[key];
+        if (img === undefined) {
+            img = new Image();
+            img.src = `assets/collection/c${key}.png`;
+            this._mementoStickerCache[key] = img;
+        }
+        return (img && img.complete && img.naturalWidth > 0) ? img : null;
+    },
+
+    _drawMementoSticker(ctx, cx, cy, img) {
+        const t = Date.now();
+        // 轻微呼吸缩放 + 上下浮动，活泼但不喧宾夺主
+        const breathe = 1 + 0.04 * Math.sin(t / 600);
+        const bob = Math.sin(t / 700) * 1.5;
+        const target = this.TILE_SIZE * 0.62 * breathe; // 贴纸适配格内，留边给暖 halo
+        const ar = img.naturalWidth / img.naturalHeight;
+        let w, h;
+        if (ar >= 1) { w = target; h = target / ar; }
+        else { h = target; w = target * ar; }
         ctx.save();
+        ctx.shadowColor = 'rgba(60,40,20,0.35)';
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetY = 2;
+        ctx.drawImage(img, cx - w / 2, cy - h / 2 + bob, w, h);
+        ctx.restore();
+    },
+
+    _drawMemento(ctx, cx, cy) {
+        // 旅途纪念物标记：暖金色发光小礼盒 + 旋转闪光，明显区别于萤火绿点
+        const t = Date.now();
+        const pulse = 0.7 + 0.3 * Math.sin(t / 400);
+        const r = 11;
+        ctx.save();
+        ctx.translate(cx, cy);
+        // 外层暖光
+        ctx.globalAlpha = pulse;
+        ctx.shadowColor = '#ffd97d';
+        ctx.shadowBlur = 14;
+        // 礼盒主体（圆角方块）
+        ctx.fillStyle = '#e8b24a';
+        this._roundRect(ctx, -r, -r + 2, r * 2, r * 2 - 2, 3);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        // 丝带十字
+        ctx.strokeStyle = '#fff4c8';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(0, -r + 2); ctx.lineTo(0, r);
+        ctx.moveTo(-r, 1); ctx.lineTo(r, 1);
+        ctx.stroke();
+        // 顶部蝴蝶结小点
+        ctx.fillStyle = '#fff4c8';
+        ctx.beginPath();
+        ctx.arc(0, -r + 1, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+        // 旋转闪光
+        const a = t / 600;
+        ctx.globalAlpha = 0.9 * pulse;
+        ctx.strokeStyle = '#fffbe6';
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 4; i++) {
+            const ang = a + i * Math.PI / 2;
+            const ix = Math.cos(ang) * (r + 5), iy = Math.sin(ang) * (r + 5);
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(ang) * (r + 2), Math.sin(ang) * (r + 2));
+            ctx.lineTo(ix, iy);
+            ctx.stroke();
+        }
+        ctx.restore();
+    },
+
+    _drawStamp(ctx, cx, cy, text, color, yOffset) {        ctx.save();
         ctx.translate(cx, cy + (yOffset || 0));
 
         ctx.strokeStyle = color;
@@ -428,6 +514,7 @@ const Grid = {
         return tile === this.PATH || tile === this.START || tile === this.END
             || tile === this.COLLECTIBLE || tile === this.TELEPORT_A
             || tile === this.TELEPORT_B || tile === this.FRAGILE
+            || tile === this.MEMENTO
             || (tile >= 10 && tile <= 13);
     },
 

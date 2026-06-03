@@ -8,11 +8,12 @@ const UI = {
             story: document.getElementById('story-screen'),
             game: document.getElementById('game-screen'),
             chapter: document.getElementById('chapter-screen'),
+            collection: document.getElementById('collection-screen'),
             complete: document.getElementById('complete-screen')
         };
 
-        // 启用「夜行萤火 · 火车票」UI 主题
-        if (this.screens.menu)    this.screens.menu.classList.add('train-mode');
+        // 启用「书桌 · 旅行纸张」首页主题（点画纸进入、点笔记本开收集室）
+        if (this.screens.menu)    this.screens.menu.classList.add('desk-mode');
         if (this.screens.chapter) this.screens.chapter.classList.add('train-mode');
 
         if (this.screens.menu) this._initMenuFireflies(this.screens.menu);
@@ -20,13 +21,31 @@ const UI = {
         // _processMenuBg 已停用：bg 文件本身已无水印，运行时清除反而会用左侧草地覆盖右下角
         this._processTicketAsset();
 
-        document.getElementById('btn-start').addEventListener('click', () => {
+        // 点击中央白纸 → 镜头推进变白 → 进入章节选择（「钻进纸中世界」）
+        const deskPaper = document.getElementById('desk-paper');
+        const enterJourney = () => {
             Audio.playClick();
             Audio.startBGM();
             this.triggerMenuLaunch(() => {
                 this.showChapterSelect();
             });
-        });
+        };
+        if (deskPaper) {
+            deskPaper.addEventListener('click', enterJourney);
+            deskPaper.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); enterJourney(); }
+            });
+        }
+
+        const btnCreaseDemo = document.getElementById('btn-crease-demo');
+        if (btnCreaseDemo) {
+            btnCreaseDemo.addEventListener('click', () => {
+                Audio.playClick();
+                Audio.startBGM();
+                Levels._creaseOverride = Levels.creasePrototype;
+                Game.startLevel();
+            });
+        }
 
         const btnChapters = document.getElementById('btn-chapters');
         if (btnChapters) {
@@ -58,12 +77,42 @@ const UI = {
 
         document.getElementById('btn-next-level').addEventListener('click', () => {
             Audio.playClick();
-            Game.advanceLevel();
+            if (Game.creaseMode) {
+                Levels._creaseOverride = null;
+                Game.creaseMode = false;
+                Audio.stopBGM();
+                this.showScreen('menu');
+                Game.state = 'menu';
+            } else {
+                Game.advanceLevel();
+            }
         });
 
         document.getElementById('btn-back-menu').addEventListener('click', () => {
             Audio.playClick();
             this.showScreen('menu');
+        });
+
+        // 收集室入口（主菜单=左下「旅行回忆」笔记本，选关页=纪念册按钮）与返回
+        const bindCollectionBtn = (id, back) => {
+            const b = document.getElementById(id);
+            if (!b) return;
+            const open = () => {
+                Audio.playClick();
+                this._collectionBack = back;
+                this.showCollection();
+            };
+            b.addEventListener('click', open);
+            b.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+            });
+        };
+        bindCollectionBtn('desk-notebook', 'menu');
+        bindCollectionBtn('btn-collection-chapter', 'chapter');
+        const bbc = document.getElementById('btn-back-collection');
+        if (bbc) bbc.addEventListener('click', () => {
+            Audio.playClick();
+            this.showScreen(this._collectionBack || 'menu');
         });
 
         document.getElementById('btn-tutorial-next').addEventListener('click', () => {
@@ -103,6 +152,8 @@ const UI = {
             Audio.playClick();
             this.hideConfirm();
             Audio.stopBGM();
+            Levels._creaseOverride = null;
+            Game.creaseMode = false;
             Game.state = 'menu';
             this.showScreen('menu');
         });
@@ -614,21 +665,7 @@ const UI = {
     },
 
     _initMenuFireflies(host) {
-        const clouds = document.createElement('div');
-        clouds.className = 'menu-clouds';
-        host.appendChild(clouds);
-
-        this._loadMenuTrain(host);
-
-        const headlight = document.createElement('div');
-        headlight.className = 'menu-headlight';
-        host.appendChild(headlight);
-
-        const smoke = document.createElement('div');
-        smoke.className = 'menu-smoke';
-        smoke.innerHTML = '<span></span><span></span><span></span>';
-        host.appendChild(smoke);
-
+        // 书桌首页：只保留暖光萤火粒子 + 启程白光层；火车/烟囱/云层等夜行场景元素不再注入。
         const canvas = document.createElement('canvas');
         canvas.className = 'fireflies-canvas';
         host.appendChild(canvas);
@@ -674,12 +711,12 @@ const UI = {
             ctx.globalCompositeOperation = 'lighter';
             const ts = t * 0.001;
 
-            // 运镜中：粒子从火车位置 (33% 38%) 放射加速，模拟被列车吹散
+            // 运镜中：粒子从纸张中心 (50% 50%) 放射加速，模拟被「吸进画纸」时吹散
             let rushK = 0;
             if (state.rushing) {
                 rushK = Math.min(1, (t - state.rushStart) / 1600);
             }
-            const fx = w * 0.33, fy = h * 0.38;
+            const fx = w * 0.5, fy = h * 0.5;
 
             for (const p of particles) {
                 if (rushK > 0) {
@@ -702,14 +739,14 @@ const UI = {
                 let a = p.base * blink;
                 if (rushK > 0) a = Math.min(1, a + rushK * 0.5);
                 const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 6);
-                g.addColorStop(0, `rgba(220, 255, 180, ${a})`);
-                g.addColorStop(0.4, `rgba(200, 255, 130, ${a * 0.4})`);
-                g.addColorStop(1, 'rgba(168, 230, 207, 0)');
+                g.addColorStop(0, `rgba(255, 240, 190, ${a})`);
+                g.addColorStop(0.4, `rgba(255, 215, 130, ${a * 0.45})`);
+                g.addColorStop(1, 'rgba(255, 210, 140, 0)');
                 ctx.fillStyle = g;
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.r * 6, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.fillStyle = `rgba(255, 250, 200, ${Math.min(1, a * 1.8)})`;
+                ctx.fillStyle = `rgba(255, 250, 220, ${Math.min(1, a * 1.8)})`;
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.r * 0.7, 0, Math.PI * 2);
                 ctx.fill();
@@ -735,6 +772,47 @@ const UI = {
             host.classList.remove('launching');
             if (this._fxState) this._fxState.rushing = false;
         }, 1700);
+    },
+
+    showCollection() {
+        const grid = document.getElementById('collection-grid');
+        const prog = document.getElementById('collection-progress');
+        if (!grid) return;
+        const all = Collection.getAll();
+        const got = Collection.count();
+        const total = Collection.total();
+        if (prog) prog.textContent = `已收集 ${got} / ${total}`;
+
+        grid.innerHTML = '';
+        all.forEach(it => {
+            const cell = document.createElement('div');
+            cell.className = 'collect-cell' + (it.collected ? ' collected' : ' locked');
+            if (it.collected) {
+                const img = document.createElement('img');
+                img.className = 'collect-img';
+                img.src = `assets/collection/${it.icon}.png`;
+                img.alt = it.name;
+                img.onerror = () => { img.style.display = 'none'; cell.classList.add('noimg'); };
+                cell.appendChild(img);
+                const nm = document.createElement('div');
+                nm.className = 'collect-name';
+                nm.textContent = it.name;
+                cell.appendChild(nm);
+                cell.title = it.desc;
+            } else {
+                const q = document.createElement('div');
+                q.className = 'collect-q';
+                q.textContent = '?';
+                cell.appendChild(q);
+                const nm = document.createElement('div');
+                nm.className = 'collect-name';
+                nm.textContent = `第${it.chapter + 1}-${it.level + 1}关`;
+                cell.appendChild(nm);
+            }
+            grid.appendChild(cell);
+        });
+
+        this.showScreen('collection');
     },
 
     showChapterSelect() {
@@ -897,13 +975,45 @@ const UI = {
         show('legend-teleport', ci >= 3);
         show('legend-fragile', ci >= 4);
         show('legend-oneway', ci >= 5);
+
+        this.updateMementoHUD();
+    },
+
+    // HUD 纪念物状态：未拿=空心提示，已拿=点亮。仅有纪念物的关显示。
+    updateMementoHUD() {
+        const el = document.getElementById('hud-memento');
+        if (!el) return;
+        const c = Levels.currentChapter, l = Levels.currentLevel;
+        const hasItem = (typeof Collection !== 'undefined') && Collection.hasItem(c, l);
+        if (!hasItem) { el.style.display = 'none'; return; }
+        el.style.display = 'inline';
+        const got = (typeof Game !== 'undefined' && Game.creaseMode) ? CreaseMode.gotMemento : Player.gotMemento;
+        const owned = Collection.isCollected(c, l);
+        if (got) {
+            el.textContent = '纪念物 ✦';
+            el.className = 'memento-on';
+        } else {
+            el.textContent = owned ? '纪念物 ✓' : '纪念物 ○';
+            el.className = owned ? 'memento-owned' : 'memento-off';
+        }
+    },
+
+    onMementoPickup() {
+        this.updateMementoHUD();
+        this.showFoldHint('✦ 拾得纪念物');
     },
 
     updateFoldCount() {
+        const el = document.getElementById('hud-folds');
+        if (!el) return;
+        if (typeof Game !== 'undefined' && Game.creaseMode) {
+            el.textContent = `萤火: ${CreaseMode.collected} / ${CreaseMode.totalFireflies()}`;
+            return;
+        }
         const level = Levels.getCurrentLevel();
         const par = level.par || 1;
         const folds = Fold.history.length;
-        document.getElementById('hud-folds').textContent = `折叠: ${folds} / ${par}`;
+        el.textContent = `折叠: ${folds} / ${par}`;
     },
 
     showFoldHint(text) {

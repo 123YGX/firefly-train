@@ -19,3 +19,6 @@ node_modules/
 # Local screenshots / scratch
 screenshots/
 .tmp/
+
+# 临时调试/截图脚本（开发用，不进正式仓库）
+tools/_raw/

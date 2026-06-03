@@ -7,11 +7,12 @@
     <canvas id="game-canvas"></canvas>
     <div id="transition-overlay"></div>
     <div id="ui-layer">
-        <div id="menu-screen" class="screen active">
-            <img class="menu-logo" src="assets/decor/menu_logo.png" alt="萤火与列车">
-            <h1 class="game-title" hidden>萤火与列车</h1>
-            <p class="subtitle">一段关于独自旅行与自我和解的折纸解谜之旅</p>
-            <button id="btn-start" class="menu-btn">开启旅程</button>
+        <div id="menu-screen" class="screen active desk-mode">
+            <div class="desk-paper" id="desk-paper" role="button" tabindex="0" aria-label="点击画纸，开启旅程">
+                <img class="paper-title" src="assets/decor/title_paper.png" alt="萤火与列车">
+                <p class="paper-hint">点击画纸 · 启程</p>
+            </div>
+            <div class="desk-notebook" id="desk-notebook" role="button" tabindex="0" aria-label="旅行回忆 · 旅途纪念册" title="旅行回忆"></div>
         </div>
         <div id="story-screen" class="screen"><div class="story-box"><p id="story-text"></p><button id="btn-story-next" class="story-btn">继续</button></div></div>
         <div id="game-screen" class="screen">
@@ -37,18 +38,32 @@
                 <div class="legend-item" id="legend-fragile" style="display:none"><span class="legend-square" style="background:#9e7b4a"></span>脆弱</div>
                 <div class="legend-item" id="legend-oneway" style="display:none"><span class="legend-square" style="background:#b8541a"></span>单向</div>
             </div>
+            <div id="dpad" aria-hidden="true">
+                <button class="dpad-btn dpad-up" data-dir="up">▲</button>
+                <button class="dpad-btn dpad-left" data-dir="left">◀</button>
+                <button class="dpad-btn dpad-right" data-dir="right">▶</button>
+                <button class="dpad-btn dpad-down" data-dir="down">▼</button>
+            </div>
         </div>
         <div id="chapter-screen" class="screen"><h2>章节选择</h2><div id="chapter-list"></div><button id="btn-back-menu" class="menu-btn">返回</button></div>
+        <div id="collection-screen" class="screen">
+            <h2>旅途纪念册</h2>
+            <p id="collection-progress" class="collection-progress"></p>
+            <div id="collection-grid"></div>
+            <button id="btn-back-collection" class="menu-btn">返回</button>
+        </div>
         <div id="complete-screen" class="screen"><div class="complete-box"><h2 id="complete-title"></h2><div id="complete-stars"></div><p id="complete-text"></p><button id="btn-next-level" class="menu-btn">下一关</button></div></div>
         <div id="confirm-overlay"><div class="confirm-box"><p id="confirm-text"></p><div class="confirm-buttons"><button id="btn-confirm-no" class="tutorial-btn-secondary">取消</button><button id="btn-confirm-yes" class="tutorial-btn-primary">退出</button></div></div></div>
     </div>
 </div>
 <script src="js/story.js"></script>
 <script src="js/levels.js"></script>
+<script src="js/collection.js"></script>
 <script src="js/tutorial.js"></script>
 <script src="js/grid.js"></script>
 <script src="js/fold.js"></script>
 <script src="js/player.js"></script>
+<script src="js/crease.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/particles.js"></script>
 <script src="js/effects.js"></script>
@@ -83,6 +98,23 @@
     }
     function suppressTutorial(){
         if (window.Tutorial) Tutorial.shouldShow = ()=>false;
+    }
+    // showScreen 用 200ms setTimeout 延迟切换（淡出动画），headless 截图等不到它。
+    // 这里同步强制激活目标 screen，绕过延迟。
+    function forceScreen(name){
+        try {
+            Object.values(UI.screens).forEach(s => {
+                s.classList.remove('active');
+                s.style.opacity = ''; s.style.transform = '';
+            });
+            const el = UI.screens[name];
+            if (el) {
+                el.classList.add('active');
+                el.style.opacity = '1';
+                el.style.transform = 'scale(1)';
+            }
+            UI.currentScreen = name;
+        } catch(e){ document.title = 'AUTOSHOT_ERR:forceScreen:' + e.message; }
     }
     function applyNofx(){
         // 关掉所有 CSS 动画/过渡，让截图直接呈现"动画结束态"
@@ -154,6 +186,12 @@
             if (q.get('tut') !== '1') suppressTutorial();
             if (story) { Game.showStory(story); return; }
             Game.startLevel();
+            forceScreen('game');
+            // 教程/提示 overlay 会遮住棋盘，截图时强制收起（除非显式 tut=1）
+            if (q.get('tut') !== '1') {
+                const ov = document.getElementById('tutorial-overlay');
+                if (ov) ov.classList.remove('visible');
+            }
             return;
         }
         if (screen === 'chapter') {
@@ -165,11 +203,80 @@
             Game.showStory(q.get('story') || 'intro');
             return;
         }
+        if (screen === 'collection') {
+            unlockAll();
+            // 注入若干已收集项，看彩色贴纸格 + 问号占位混排
+            const got = (q.get('got') || '0-0,0-2,1-1,2-0,3-2,4-0,5-2').split(',');
+            got.forEach(k => { if (/^\d-\d$/.test(k)) Collection.collected.add(k); });
+            UI.showCollection();
+            forceScreen('collection');
+            return;
+        }
+        if (screen === 'launch') {
+            // 模拟点击画纸：触发「钻进纸里」推镜白光过渡，配合 settle 截中间帧
+            silenceAudio();
+            if (UI.triggerMenuLaunch) UI.triggerMenuLaunch(() => {});
+            return;
+        }
+        if (screen === 'crease') {
+            // 折痕铺路原型关。folds=V1,H2,... 预折；moves=RRUU 预走；done=1 直接结算过关界面
+            Levels._creaseOverride = Levels.creasePrototype;
+            Levels.currentChapter = 0; Levels.currentLevel = 0;
+            Game.startLevel();
+            forceScreen('game');
+            const folds = q.get('folds');
+            if (folds) folds.split(',').forEach(f => {
+                const m = f.trim().match(/^([VH])(\d+)$/i);
+                if (m) CreaseMode._applyRoad(m[1].toUpperCase(), +m[2]);
+            });
+            const moves = q.get('moves');
+            if (moves) {
+                // 瞬移版预走（截图用，跳过动画）：逐格直接落位并结算收集
+                const dmap = { R:[1,0], L:[-1,0], U:[0,-1], D:[0,1] };
+                for (const ch of moves.toUpperCase()) {
+                    const d = dmap[ch]; if (!d) continue;
+                    const nx = CreaseMode.px + d[0], ny = CreaseMode.py + d[1];
+                    if (nx<0||nx>=CreaseMode.W||ny<0||ny>=CreaseMode.H) continue;
+                    if (!CreaseMode._edgeOpen(CreaseMode.px, CreaseMode.py, nx, ny)) continue;
+                    CreaseMode.px = nx; CreaseMode.py = ny;
+                    CreaseMode.pixelX = CreaseMode._cx(nx); CreaseMode.pixelY = CreaseMode._cy(ny);
+                    const res = CreaseMode._arriveAt(nx, ny);
+                    if (res === 'complete' && q.get('done') === '1') { Game.onCreaseComplete(); break; }
+                }
+                UI.updateFoldCount();
+            }
+            if (q.get('hover')) {
+                const m = q.get('hover').match(/^([vh])(\d+)([a-z]+)$/i);
+                if (m) CreaseMode.hover = { type: m[1].toLowerCase(), index: +m[2], side: m[3].toLowerCase() };
+            }
+            if (q.get('dpad') === '1') {
+                document.body.classList.add('touch-device');
+                const gs = document.getElementById('game-screen');
+                if (gs) gs.classList.add('crease-active');
+            }
+            if (q.get('probe') === 'dpad') {
+                setTimeout(() => {
+                    const d = document.getElementById('dpad');
+                    const cs = d ? getComputedStyle(d) : null;
+                    const r = d ? d.getBoundingClientRect() : null;
+                    console.log('DPAD-PROBE display=' + (cs && cs.display) +
+                        ' vis=' + (cs && cs.visibility) + ' z=' + (cs && cs.zIndex) +
+                        ' rect=' + (r ? [r.left|0, r.top|0, r.width|0, r.height|0].join(',') : 'null'));
+                    const b = d && d.querySelector('.dpad-btn');
+                    const br = b ? b.getBoundingClientRect() : null;
+                    console.log('DPAD-PROBE btn rect=' + (br ? [br.left|0, br.top|0, br.width|0, br.height|0].join(',') : 'null'));
+                }, 200);
+            }
+            return;
+        }
         // 默认 menu，不动
     }
 
-    // Game.init 在 window load 里跑，等它跑完
-    window.addEventListener('load', () => setTimeout(go, 50));
+    // Game.init() 同步挂在 window load，且 game.js 的 load 监听器先于本脚本注册，
+    // 故本监听器执行时 Game/Levels/UI 已就绪，直接同步 go()。
+    window.addEventListener('load', () => {
+        try { go(); } catch (e) { document.title = 'AUTOSHOT_ERR:' + e.message; }
+    });
 })();
 </script>
 </body></html>
