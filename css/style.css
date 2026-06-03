@@ -39,6 +39,16 @@ body {
     80% { transform: translateX(2px); }
 }
 
+/* 竖屏专用晃动：保留 translate(-50%,-50%) rotate(90deg) 基底，
+   否则 animation 的 transform 会整体覆盖旋转，导致画面瞬间挤成一条再弹回。 */
+@keyframes shake-portrait {
+    0%, 100% { transform: translate(-50%, -50%)            rotate(90deg); }
+    20% { transform: translate(calc(-50% - 4px), -50%)     rotate(90deg); }
+    40% { transform: translate(calc(-50% + 4px), -50%)     rotate(90deg); }
+    60% { transform: translate(calc(-50% - 2px), -50%)     rotate(90deg); }
+    80% { transform: translate(calc(-50% + 2px), -50%)     rotate(90deg); }
+}
+
 #game-canvas {
     position: absolute;
     top: 0;
@@ -1779,6 +1789,10 @@ body {
         transform: translate(-50%, -50%) rotate(90deg);
         transform-origin: center center;
         border-radius: 0;
+    }
+    /* 竖屏下用保留旋转基底的晃动，避免 shake 覆盖 rotate(90deg) 把画面挤成一条 */
+    #game-container.shake {
+        animation: shake-portrait 0.3s ease-out;
     }
 }
 
