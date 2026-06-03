@@ -60,6 +60,7 @@ const UI = {
             if (Fold.undo()) {
                 Audio.playClick();
                 this.updateFoldCount();
+                Game.hideFoldDirPanel();
             }
         });
 
@@ -69,6 +70,7 @@ const UI = {
             const start = Grid.findStart();
             Player.init(start.x, start.y);
             this.updateFoldCount();
+            Game.hideFoldDirPanel();
         });
 
         document.getElementById('btn-next-level').addEventListener('click', () => {
@@ -191,6 +193,8 @@ const UI = {
     },
 
     showScreen(name) {
+        // 切换界面时收起移动端折叠方向面板，避免残留到其它屏
+        if (typeof Game !== 'undefined' && Game.hideFoldDirPanel) Game.hideFoldDirPanel();
         // 淡出当前界面
         const currentScreen = Object.values(this.screens).find(s => s.classList.contains('active'));
         if (currentScreen) {

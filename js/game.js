@@ -24,6 +24,7 @@ const Game = {
         UI.init();
         this.bindEvents();
         this.bindDpad();
+        this.bindFoldDirPanel();
         this.loop();
     },
 
@@ -42,6 +43,54 @@ const Game = {
             btn.addEventListener('touchstart', fire, { passive: false });
             btn.addEventListener('click', fire);
         });
+    },
+
+    // 移动端折叠方向面板：绑定四个方向按钮，点对应方向直接折叠
+    bindFoldDirPanel() {
+        const panel = document.getElementById('fold-dir-panel');
+        if (!panel) return;
+        panel.querySelectorAll('.fold-dir-btn').forEach(btn => {
+            const side = btn.dataset.side;
+            const fire = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.state !== 'playing' || Player.moving || Fold.animating) return;
+                const edge = Fold.hoveredEdge;
+                if (!edge) return;
+                // 校验方向与折线类型匹配（竖线只接受 left/right，横线只接受 top/bottom）
+                const ok = edge.type === 'vertical'
+                    ? (side === 'left' || side === 'right')
+                    : (side === 'top' || side === 'bottom');
+                if (!ok) return;
+                Audio.playClick();
+                Fold.executeFold(edge, side);
+                Fold.hoveredEdge = null;
+                Fold.hoveredSide = null;
+                Fold._previewCache = null;
+                this.hideFoldDirPanel();
+            };
+            btn.addEventListener('touchstart', fire, { passive: false });
+            btn.addEventListener('click', fire);
+        });
+    },
+
+    // 选中折线后显示方向面板：竖线亮左/右，横线亮上/下
+    showFoldDirPanel(edge) {
+        const panel = document.getElementById('fold-dir-panel');
+        if (!panel) return;
+        panel.classList.remove('vertical', 'horizontal');
+        panel.classList.add(edge.type === 'vertical' ? 'vertical' : 'horizontal');
+        panel.classList.add('visible');
+        panel.setAttribute('aria-hidden', 'false');
+        const tip = panel.querySelector('.fold-dir-tip');
+        if (tip) tip.textContent = edge.type === 'vertical' ? '向左 / 向右折' : '向上 / 向下折';
+    },
+
+    hideFoldDirPanel() {
+        const panel = document.getElementById('fold-dir-panel');
+        if (!panel) return;
+        panel.classList.remove('visible', 'vertical', 'horizontal');
+        panel.setAttribute('aria-hidden', 'true');
     },
 
     // 把屏幕坐标换算成 canvas 逻辑坐标，正确处理竖屏 CSS rotate(90deg) 的情况
@@ -97,6 +146,7 @@ const Game = {
                     if (Fold.undo()) {
                         Audio.playClick();
                         UI.updateFoldCount();
+                        this.hideFoldDirPanel();
                     }
                 } else if (e.key === 'r' || e.key === 'R') {
                     Audio.playClick();
@@ -104,6 +154,7 @@ const Game = {
                     const start = Grid.findStart();
                     Player.init(start.x, start.y);
                     UI.updateFoldCount();
+                    this.hideFoldDirPanel();
                 }
             }
             if (e.key === 'Escape') {
@@ -125,30 +176,19 @@ const Game = {
             if (this.state !== 'playing' || Player.moving || Fold.animating) return;
             const edge = Fold.detectEdge(mx, my);
             if (edge) {
-                const side = Fold.determineSide(mx, my, edge);
-                // 触摸两步确认：第一次点线只选中预览，再次点同一条线（同侧）才真正折叠。
-                // 这样手机上不会因为点偏一侧而误折错方向。
-                const sel = Fold.hoveredEdge;
-                const sameLine = sel && sel.type === edge.type && sel.index === edge.index && Fold.hoveredSide === side;
-                if (sameLine) {
-                    Fold.executeFold(edge, side);
-                    Fold.hoveredEdge = null;
-                    Fold.hoveredSide = null;
-                    Fold._previewCache = null;
-                } else {
-                    Fold.hoveredEdge = edge;
-                    Fold.hoveredSide = side;
-                    Fold._previewCache = null;
-                    Audio.playClick();
-                    UI.showFoldHint('沿这条线折 → 再点一次确认');
-                }
+                // 触摸：第一次点线只选中（橙色虚线高亮），随后右侧方向面板出现，
+                // 由玩家点方向图标决定往哪侧折。避免点偏一侧误折。
+                Fold.hoveredEdge = edge;
+                Fold.hoveredSide = null;        // 方向交给面板按钮决定，先不预设
+                Fold._previewCache = null;
+                Audio.playClick();
+                this.showFoldDirPanel(edge);
             } else {
-                // 点空白处取消已选中的折线预览
-                if (Fold.hoveredEdge) {
-                    Fold.hoveredEdge = null;
-                    Fold.hoveredSide = null;
-                    Fold._previewCache = null;
-                }
+                // 点空白处取消选中并收起方向面板
+                Fold.hoveredEdge = null;
+                Fold.hoveredSide = null;
+                Fold._previewCache = null;
+                this.hideFoldDirPanel();
             }
         }, { passive: false });
 

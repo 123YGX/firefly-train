@@ -1822,4 +1822,66 @@ body {
 .dpad-right { top: 49px; right: 0; }
 .dpad-down  { bottom: 0; left: 49px; }
 
+/* ── 移动端折叠方向面板 ──
+   触摸设备：第一次点折线只选中（橙色虚线高亮），随后在画面右侧弹出方向图标，
+   点方向图标才真正折叠。选竖线 → 亮左/右；选横线 → 亮上/下。
+   桌面端恒隐藏（桌面用 hover 预览 + 单击直接折）。 */
+#fold-dir-panel {
+    display: none;   /* 默认隐藏；.touch-device 且 .visible 时显示 */
+    position: absolute;
+    top: 50%;
+    right: 4%;
+    transform: translateY(-50%);
+    width: 168px;
+    height: 168px;
+    pointer-events: none;   /* 容器不挡触摸，只有按钮接收 */
+    z-index: 40;
+}
+.touch-device #fold-dir-panel.visible {
+    display: block;
+}
+.fold-dir-tip {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    color: rgba(255, 224, 150, 0.85);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    white-space: nowrap;
+    pointer-events: none;
+}
+.fold-dir-btn {
+    position: absolute;
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    border: 2px solid rgba(255, 224, 150, 0.85);
+    background: rgba(244, 234, 208, 0.92);
+    color: #3d2817;
+    font-size: 26px;
+    display: none;   /* 仅当前折线类型对应的一对方向显示 */
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+    transition: background 0.1s ease, transform 0.1s ease;
+}
+.fold-dir-btn:active {
+    background: rgba(255, 215, 130, 0.95);
+    transform: scale(0.9);
+}
+.fold-dir-up    { top: 0;    left: 52px; }
+.fold-dir-down  { bottom: 0; left: 52px; }
+.fold-dir-left  { top: 52px; left: 0; }
+.fold-dir-right { top: 52px; right: 0; }
+/* 按折线类型只显示一对方向（JS 切换 panel 上的 vertical / horizontal 类） */
+#fold-dir-panel.vertical   .fold-dir-left,
+#fold-dir-panel.vertical   .fold-dir-right { display: flex; }
+#fold-dir-panel.horizontal .fold-dir-up,
+#fold-dir-panel.horizontal .fold-dir-down  { display: flex; }
+
 
