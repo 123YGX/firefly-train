@@ -1188,8 +1188,8 @@ body {
     }
 }
 
-/* 章节锁定时不显示 ticket-row（保留站台牌灰显） */
-.train-mode .platform-sign.locked + .ticket-row { display: none; }
+/* 锁定章节的关卡也全部显示，仅灰显锁定不可点（不再整排隐藏）。
+   锁定票样式见 .train-mode .train-ticket.locked，点击事件只绑在解锁票上。 */
 
 /* 首次进选关屏：第一张可玩票引导脉冲 + ↓ 提示 */
 .train-mode .train-ticket.first-time-hint {
