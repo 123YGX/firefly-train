@@ -346,6 +346,24 @@ body {
     transform: scale(0.94);
 }
 
+/* HUD 图标用内联 SVG（线条图标），避免 iOS Safari 把 ♪ ↩ ↺ ✕ 等字符渲染成彩色 emoji
+   导致大小/基线/配色跳变。SVG 用 currentColor 继承按钮文字色，hover/active 自动变色。 */
+.hud-ico {
+    width: 18px;
+    height: 18px;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.hud-ico .snd-body { fill: currentColor; stroke: currentColor; stroke-width: 1.2; }
+.hud-ico .snd-slash { display: none; }   /* 默认非静音不显示斜杠 */
+#btn-mute.muted .hud-ico .snd-wave { display: none; }
+#btn-mute.muted .hud-ico .snd-slash { display: block; }
+.hud-btn-text { font-size: 17px; line-height: 1; }
+
 /* Fold indicator */
 #fold-indicator {
     position: absolute;
@@ -1890,6 +1908,18 @@ body {
 .fold-dir-down  { bottom: 0; left: 52px; }
 .fold-dir-left  { top: 52px; left: 0; }
 .fold-dir-right { top: 52px; right: 0; }
+/* 方向箭头用纯 CSS 三角形（border 技巧），不依赖 ▲▼◀▶ 字符，
+   避免 iOS Safari 把它们渲染成 emoji。三角用 currentColor，选中态自动跟随变色。 */
+.fold-dir-btn::before {
+    content: "";
+    width: 0;
+    height: 0;
+    border: 11px solid transparent;
+}
+.fold-dir-up::before    { border-bottom-color: currentColor; margin-top: -6px; }
+.fold-dir-down::before  { border-top-color: currentColor;    margin-bottom: -6px; }
+.fold-dir-left::before  { border-right-color: currentColor;  margin-left: -6px; }
+.fold-dir-right::before { border-left-color: currentColor;   margin-right: -6px; }
 /* 按折线类型只显示一对方向（JS 切换 panel 上的 vertical / horizontal 类） */
 #fold-dir-panel.vertical   .fold-dir-left,
 #fold-dir-panel.vertical   .fold-dir-right { display: flex; }

@@ -129,8 +129,9 @@ const UI = {
 
         document.getElementById('btn-mute').addEventListener('click', () => {
             const muted = Audio.toggleMute();
-            document.getElementById('btn-mute').textContent = muted ? '♪̸' : '♪';
-            document.getElementById('btn-mute').style.opacity = muted ? '0.5' : '1';
+            const btn = document.getElementById('btn-mute');
+            btn.classList.toggle('muted', muted);
+            btn.style.opacity = muted ? '0.55' : '1';
         });
 
         document.getElementById('btn-confirm-no').addEventListener('click', () => {
