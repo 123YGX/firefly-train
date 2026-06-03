@@ -607,21 +607,56 @@ const Fold = {
         const side = this.hoveredSide;
         const TS = Grid.TILE_SIZE;
 
-        ctx.strokeStyle = 'rgba(255, 183, 77, 0.6)';
-        ctx.lineWidth = 3;
-        ctx.setLineDash([8, 4]);
-        ctx.beginPath();
+        // 选中折线高亮：触摸设备画得更粗更亮 + 发光底 + 流动虚线，叠在彩铅背景上也一眼可见。
+        const touch = (typeof document !== 'undefined') && document.body.classList.contains('touch-device');
+
+        let x1, y1, x2, y2;
         if (edge.type === 'vertical') {
             const x = Grid.offsetX + edge.index * TS;
-            ctx.moveTo(x, Grid.offsetY);
-            ctx.lineTo(x, Grid.offsetY + Grid.gridHeight * TS);
+            x1 = x; y1 = Grid.offsetY; x2 = x; y2 = Grid.offsetY + Grid.gridHeight * TS;
         } else {
             const y = Grid.offsetY + edge.index * TS;
-            ctx.moveTo(Grid.offsetX, y);
-            ctx.lineTo(Grid.offsetX + Grid.gridWidth * TS, y);
+            x1 = Grid.offsetX; y1 = y; x2 = Grid.offsetX + Grid.gridWidth * TS; y2 = y;
         }
-        ctx.stroke();
-        ctx.setLineDash([]);
+
+        ctx.save();
+        if (touch) {
+            // 发光底：粗、半透明暖光，先铺一层让线从背景里"浮"出来
+            ctx.strokeStyle = 'rgba(255, 170, 50, 0.35)';
+            ctx.lineWidth = 12;
+            ctx.lineCap = 'round';
+            ctx.shadowColor = 'rgba(255, 190, 80, 0.9)';
+            ctx.shadowBlur = 16;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+            ctx.stroke();
+            // 亮实线主体
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = 'rgba(255, 224, 130, 0.95)';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+            ctx.stroke();
+            // 流动虚线（marching ants）叠在亮线上，引导注意
+            const dashOffset = -((Date.now() / 60) % 18);
+            ctx.strokeStyle = 'rgba(184, 84, 26, 0.95)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 8]);
+            ctx.lineDashOffset = dashOffset;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        } else {
+            ctx.strokeStyle = 'rgba(255, 183, 77, 0.6)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([8, 4]);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        ctx.restore();
         ctx.lineWidth = 1;
 
         if (!side) return;
