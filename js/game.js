@@ -44,14 +44,26 @@ const Game = {
         });
     },
 
+    // 把屏幕坐标换算成 canvas 逻辑坐标，正确处理竖屏 CSS rotate(90deg) 的情况
+    eventToCanvas(clientX, clientY) {
+        const rect = this.canvas.getBoundingClientRect();
+        const portrait = rect.height > rect.width;   // 竖屏时 canvas 的 bounding rect 宽高互换
+        let rx, ry;
+        if (portrait) {
+            // 旋转 90deg 后：canvas 逻辑 x 对应屏幕 y 方向（从底部算），y 对应屏幕 x 方向
+            rx = (clientY - rect.top)  / rect.height * this.canvas.width;
+            ry = (1 - (clientX - rect.left) / rect.width) * this.canvas.height;
+        } else {
+            rx = (clientX - rect.left) / rect.width  * this.canvas.width;
+            ry = (clientY - rect.top)  / rect.height * this.canvas.height;
+        }
+        return { mx: rx, my: ry };
+    },
+
     bindEvents() {
         this.canvas.addEventListener('mousemove', (e) => {
             if (this.state !== 'playing') return;
-            const rect = this.canvas.getBoundingClientRect();
-            const scaleX = this.canvas.width / rect.width;
-            const scaleY = this.canvas.height / rect.height;
-            const mx = (e.clientX - rect.left) * scaleX;
-            const my = (e.clientY - rect.top) * scaleY;
+            const { mx, my } = this.eventToCanvas(e.clientX, e.clientY);
 
             if (this.creaseMode) {
                 if (CreaseMode.moving) { CreaseMode.hover = null; this.canvas.style.cursor = 'default'; return; }
@@ -85,11 +97,7 @@ const Game = {
 
         this.canvas.addEventListener('click', (e) => {
             if (this.state !== 'playing') return;
-            const rect = this.canvas.getBoundingClientRect();
-            const scaleX = this.canvas.width / rect.width;
-            const scaleY = this.canvas.height / rect.height;
-            const mx = (e.clientX - rect.left) * scaleX;
-            const my = (e.clientY - rect.top) * scaleY;
+            const { mx, my } = this.eventToCanvas(e.clientX, e.clientY);
 
             if (this.creaseMode) {
                 if (CreaseMode.moving) return;
@@ -159,11 +167,7 @@ const Game = {
         this.canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
-            const rect = this.canvas.getBoundingClientRect();
-            const scaleX = this.canvas.width / rect.width;
-            const scaleY = this.canvas.height / rect.height;
-            const mx = (touch.clientX - rect.left) * scaleX;
-            const my = (touch.clientY - rect.top) * scaleY;
+            const { mx, my } = this.eventToCanvas(touch.clientX, touch.clientY);
 
             if (this.creaseMode) {
                 if (this.state !== 'playing' || CreaseMode.moving) return;
@@ -185,11 +189,7 @@ const Game = {
             e.preventDefault();
             if (this.state !== 'playing') return;
             const touch = e.touches[0];
-            const rect = this.canvas.getBoundingClientRect();
-            const scaleX = this.canvas.width / rect.width;
-            const scaleY = this.canvas.height / rect.height;
-            const mx = (touch.clientX - rect.left) * scaleX;
-            const my = (touch.clientY - rect.top) * scaleY;
+            const { mx, my } = this.eventToCanvas(touch.clientX, touch.clientY);
             Fold.hoveredEdge = Fold.detectEdge(mx, my);
             Fold.hoveredSide = Fold.hoveredEdge ? Fold.determineSide(mx, my, Fold.hoveredEdge) : null;
             Fold._previewCache = null;

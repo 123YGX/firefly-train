@@ -1786,9 +1786,24 @@ body {
     60%, 100% { transform: rotate(-90deg); }
 }
 
-/* 触摸设备 + 竖屏：显示旋转提示，挡住游戏 */
+/* 触摸设备竖屏：把整个游戏旋转 90° 横向显示。
+   用户把手机横过来后画面即为正向，铺满屏幕。微信等锁竖屏的内置浏览器也适用。
+   #game-container 旋转后宽高互换：宽=视口高，高=视口宽。 */
 @media (orientation: portrait) and (pointer: coarse) {
-    #rotate-prompt { display: flex; }
+    #rotate-prompt { display: none; }   /* 不再用遮挡提示，改为自动旋转 */
+    body { overflow: hidden; }
+    #game-container {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        width: 100vh;
+        height: 100vw;
+        max-width: 100vh;
+        max-height: 100vw;
+        transform: translate(-50%, -50%) rotate(90deg);
+        transform-origin: center center;
+        border-radius: 0;
+    }
 }
 
 /* 虚拟方向键：默认隐藏，仅触摸设备 + 折痕模式显示 */
