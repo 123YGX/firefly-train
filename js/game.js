@@ -45,23 +45,39 @@ const Game = {
         });
     },
 
-    // 移动端折叠方向面板：绑定四个方向按钮，点对应方向直接折叠
+    // 移动端折叠方向面板：绑定四个方向按钮（箭头=纸张翻折运动方向）。
+    // 两段式：第一次点方向 → 显示背面预览 + 按钮高亮；再点同方向 → 真正折叠。
     bindFoldDirPanel() {
         const panel = document.getElementById('fold-dir-panel');
         if (!panel) return;
+        // 翻折运动方向 → executeFold 的 side（side=被折走的那一侧，与运动方向相反）
+        // up=下半上翻→bottom, down=上半下翻→top, left=右半左翻→right, right=左半右翻→left
+        const DIR_TO_SIDE = { up: 'bottom', down: 'top', left: 'right', right: 'left' };
         panel.querySelectorAll('.fold-dir-btn').forEach(btn => {
-            const side = btn.dataset.side;
+            const dir = btn.dataset.dir;
+            const side = DIR_TO_SIDE[dir];
             const fire = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 if (this.state !== 'playing' || Player.moving || Fold.animating) return;
                 const edge = Fold.hoveredEdge;
                 if (!edge) return;
-                // 校验方向与折线类型匹配（竖线只接受 left/right，横线只接受 top/bottom）
+                // 校验方向与折线类型匹配（竖线只接受 left/right，横线只接受 up/down）
                 const ok = edge.type === 'vertical'
-                    ? (side === 'left' || side === 'right')
-                    : (side === 'top' || side === 'bottom');
+                    ? (dir === 'left' || dir === 'right')
+                    : (dir === 'up' || dir === 'down');
                 if (!ok) return;
+
+                // 第一次点该方向：只设 side → 渲染背面 ghost 预览 + 高亮该按钮
+                if (Fold.hoveredSide !== side) {
+                    Fold.hoveredSide = side;
+                    Fold._previewCache = null;
+                    Audio.playClick();
+                    this._highlightFoldDirBtn(panel, dir);
+                    UI.showFoldHint('再点一次该方向确认折叠');
+                    return;
+                }
+                // 再点同方向：真正折叠
                 Audio.playClick();
                 Fold.executeFold(edge, side);
                 Fold.hoveredEdge = null;
@@ -74,6 +90,12 @@ const Game = {
         });
     },
 
+    _highlightFoldDirBtn(panel, dir) {
+        panel.querySelectorAll('.fold-dir-btn').forEach(b => {
+            b.classList.toggle('selected', b.dataset.dir === dir);
+        });
+    },
+
     // 选中折线后显示方向面板：竖线亮左/右，横线亮上/下
     showFoldDirPanel(edge) {
         const panel = document.getElementById('fold-dir-panel');
@@ -82,14 +104,16 @@ const Game = {
         panel.classList.add(edge.type === 'vertical' ? 'vertical' : 'horizontal');
         panel.classList.add('visible');
         panel.setAttribute('aria-hidden', 'false');
+        panel.querySelectorAll('.fold-dir-btn').forEach(b => b.classList.remove('selected'));
         const tip = panel.querySelector('.fold-dir-tip');
-        if (tip) tip.textContent = edge.type === 'vertical' ? '向左 / 向右折' : '向上 / 向下折';
+        if (tip) tip.textContent = edge.type === 'vertical' ? '点左/右选折向' : '点上/下选折向';
     },
 
     hideFoldDirPanel() {
         const panel = document.getElementById('fold-dir-panel');
         if (!panel) return;
         panel.classList.remove('visible', 'vertical', 'horizontal');
+        panel.querySelectorAll('.fold-dir-btn').forEach(b => b.classList.remove('selected'));
         panel.setAttribute('aria-hidden', 'true');
     },
 
